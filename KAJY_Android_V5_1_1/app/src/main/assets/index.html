@@ -64,22 +64,64 @@
 </style>
 <style id="kajy-android-mobile">
 /* KAJY Android/mobile optimization — preserves the existing visual identity */
+/* Optimisation mobile Android — conserve la structure et l'identité visuelle */
+html,body{overscroll-behavior-y:none;}
+button,a,input,select,textarea{touch-action:manipulation;}
+button{-webkit-tap-highlight-color:transparent;}
 @media (max-width: 768px){
   html,body{width:100%;min-width:0;overflow-x:hidden;-webkit-text-size-adjust:100%;}
+  body{padding-bottom:env(safe-area-inset-bottom);}
   button,input,select,textarea{font-size:16px;}
-  button{min-height:42px;}
-  #app-logo-container{max-width:72vw;}
-  .custom-scrollbar{scrollbar-width:thin;}
+  button{min-height:44px;}
+  input,select,textarea{min-height:44px;}
+  #app-logo-container{width:42px;height:42px;flex:none;}
+  #app-brand-title{font-size:14px;}
+  #main-nav{top:0!important;position:sticky;}
+  #main-nav>div{padding-left:8px;padding-right:8px;scrollbar-width:none;}
+  #main-nav>div::-webkit-scrollbar{display:none;}
+  .nav-tab{min-height:48px!important;padding:10px 12px!important;}
+  main{padding-left:10px!important;padding-right:10px!important;padding-top:12px!important;padding-bottom:18px!important;}
+  /* Les tableaux restent lisibles et défilables horizontalement */
+  table{min-width:640px;}
+  .overflow-x-auto{-webkit-overflow-scrolling:touch;scrollbar-width:thin;}
+  /* Cartes et modales plus confortables au toucher */
+  [class*="rounded-xl"],[class*="rounded-2xl"]{max-width:100%;}
+  .fixed.inset-0{padding:10px!important;}
+  .fixed.inset-0>div{max-height:94vh;overflow-y:auto;}
+  /* Zone POS : recherche toujours accessible */
+  #pos-product-grid{max-height:46vh!important;min-height:180px;}
+  #pos-barcode-input,#pos-search{font-size:16px!important;}
+  /* Sélecteurs de filtres empilés sans débordement */
+  #sec-pos .flex.flex-col.sm\:flex-row{width:100%;}
+  #sec-pos select{width:100%;}
+  /* Boutons d'action plus faciles à presser */
+  .sales-action{min-width:44px;min-height:44px;}
+  .back-office-return-btn{right:12px;bottom:calc(12px + env(safe-area-inset-bottom));padding:10px 14px;font-size:12px;}
 }
 @media (max-width: 480px){
-  .back-office-return-btn{right:12px;bottom:12px;padding:10px 14px;font-size:12px;}
+  header .max-w-7xl{padding-left:8px!important;padding-right:8px!important;}
+  header .text-slate-400{display:none;}
+  #auth-screen{align-items:flex-start!important;padding-top:18px!important;}
+  #auth-screen>div{padding:20px!important;margin-top:0!important;}
+  #login-logo-container{width:112px;height:112px;}
+  #login-pin{letter-spacing:.5em;}
+  #back-office-return-btn span{display:none;}
+  .back-office-return-btn{width:46px;height:46px;padding:0;justify-content:center;border-radius:50%;}
+  /* Évite les boutons minuscules dans les en-têtes de cartes */
+  .flex.justify-between button{min-width:44px;}
+}
+@media (orientation: landscape) and (max-height: 520px){
+  #auth-screen{align-items:flex-start!important;}
+  #auth-screen>div{margin:8px auto!important;}
+  #login-logo-container{width:72px;height:72px;}
 }
 </style>
 <script>
 window.KAJY_OFFLINE={online:navigator.onLine};
 const isHttp=location.protocol==='http:'||location.protocol==='https:';
 const isElectron=navigator.userAgent.toLowerCase().includes('electron');
-if('serviceWorker' in navigator && isHttp && !isElectron){
+const isAndroidApp=location.protocol==='file:';
+if('serviceWorker' in navigator && isHttp && !isElectron && !isAndroidApp){
 window.addEventListener('load',()=>{navigator.serviceWorker.register('./sw.js',{scope:'./'}).then(r=>console.log('SW actif',r.scope)).catch(e=>console.warn('SW non dispo',e));});
 }
 function updateNetworkStatus(){
@@ -106,7 +148,7 @@ document.addEventListener('DOMContentLoaded',updateNetworkStatus);
 <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 space-y-6 my-auto">
 <div class="text-center space-y-2">
   <div id="login-logo-container" class="w-40 h-40 rounded-full mx-auto flex items-center justify-center overflow-hidden bg-white shadow-xl shadow-blue-500/30 ring-4 ring-blue-500/40">
-    <img id="login-logo-img" src="assets/kajy_logo.png" alt="KAJY Solutions Digitales" class="w-full h-full object-contain p-2">
+    <img id="login-logo-img" src="assets/kajy_logo.png" onerror="this.onerror=null;this.src='assets/kajy_logo.svg'" alt="KAJY Solutions Digitales" class="w-full h-full object-contain p-2">
     <i id="login-logo-icon" data-lucide="shopping-bag" class="w-9 h-9 text-blue-600 hidden"></i>
 </div>
 <h2 class="font-bold text-xl text-slate-900">Connexion Sécurisée</h2>
@@ -154,7 +196,7 @@ document.addEventListener('DOMContentLoaded',updateNetworkStatus);
 <div class="max-w-7xl mx-auto px-4 py-2.5 flex justify-between items-center">
 <div class="flex items-center space-x-3">
 <div id="app-logo-container" class="w-11 h-11 rounded-2xl bg-white/95 p-1.5 shadow-lg shadow-blue-950/30 ring-1 ring-white/20 flex items-center justify-center overflow-hidden">
-<img id="app-logo-img" src="assets/kajy_logo.png" alt="Logo" class="w-full h-full object-contain">
+<img id="app-logo-img" src="assets/kajy_logo.png" onerror="this.onerror=null;this.src='assets/kajy_logo.svg'" alt="Logo" class="w-full h-full object-contain">
 </div>
 <div>
 <h1 id="app-brand-title" class="font-bold text-base leading-tight tracking-wide">ExpressPOS <span class="text-blue-400">& Stock Pro</span></h1>
@@ -665,11 +707,19 @@ document.addEventListener('DOMContentLoaded',updateNetworkStatus);
 <section id="sec-settings" class="tab-content hidden space-y-5">
 <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 space-y-4">
 <h2 class="font-bold text-base text-slate-800 flex items-center space-x-2 border-b pb-3"><i data-lucide="settings" class="w-5 h-5 text-blue-600"></i><span>Paramètres Généraux</span></h2>
+<div class="bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2"><span><b>État :</b> les paramètres sont enregistrés localement et ajoutés automatiquement à la file de synchronisation.</span><button type="button" onclick="updateSyncUI('État des paramètres actualisé.')" class="bg-white border border-blue-200 px-3 py-2 rounded-lg font-bold">Actualiser l’état</button></div>
 <form onsubmit="saveSettings(event)" class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
 <div><label class="font-bold text-slate-600">Nom du Magasin</label><input type="text" id="set-shop-name" class="w-full mt-1 border border-slate-300 p-2.5 rounded-lg font-semibold" required></div>
 <div><label class="font-bold text-slate-600">Adresse</label><input type="text" id="set-shop-address" class="w-full mt-1 border border-slate-300 p-2.5 rounded-lg" required></div>
 <div><label class="font-bold text-slate-600">Téléphone</label><input type="text" id="set-shop-phone" class="w-full mt-1 border border-slate-300 p-2.5 rounded-lg" required></div>
 <div><label class="font-bold text-slate-600">Taux de TVA (%)</label><input type="number" id="set-tva-rate" step="1" min="0" max="100" class="w-full mt-1 border border-slate-300 p-2.5 rounded-lg" required></div>
+<div class="sm:col-span-2 bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2">
+<label class="font-bold text-slate-600">Adresse de synchronisation</label>
+<input type="url" id="set-sync-endpoint" placeholder="https://serveur:3000/api/sync" class="w-full mt-1 border border-slate-300 p-2.5 rounded-lg text-xs">
+<p id="sync-queue-info" class="text-[10px] text-slate-500">État de synchronisation en attente…</p>
+<span id="sync-settings-status" class="hidden text-[10px] font-bold text-emerald-600">● Synchronisation</span>
+<p class="text-[10px] text-slate-500">Sur Android, utilisez l’adresse IP ou le nom réseau du serveur multi-PC, pas « localhost » si le serveur tourne sur un autre appareil.</p>
+</div>
 <div class="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
 <label class="font-bold text-slate-600">Logo de l'entreprise</label>
 <input id="setting-logo-file" type="file" accept="image/*" class="w-full text-xs">
@@ -918,7 +968,7 @@ document.addEventListener('DOMContentLoaded',updateNetworkStatus);
 /* ============================================================================
    KAJY EXPRESS & Stock Pro v5.1.0
    ============================================================================ */
-const APP_VERSION='5.1.1';
+const APP_VERSION='5.1.2';
 const APP_STORAGE_PREFIX='pos_';
 const SYNC_QUEUE_KEY='pos_sync_queue';
 const SYNC_META_KEY='pos_sync_meta';
@@ -948,7 +998,7 @@ function saveStorageRaw(key,val){try{localStorage.setItem(key,JSON.stringify(val
 
 let settings=loadStorage('pos_settings',{
   shopName:"SUPERMARCHÉ EXPRESS",address:"102 Route d'Ivato, Antananarivo",phone:"+261 34 00 000 00",
-  nif:"",stat:"",tvaRate:20,logo:"assets/kajy_logo.png",syncEndpoint:"",
+  nif:"",stat:"",tvaRate:20,logo:"assets/kajy_logo.svg",syncEndpoint:"",
   excelColors:{primary:"1F4E78",secondary:"D9EAF7",accent:"5B9BD5",subtitle:"17365D",subtitleBg:"D9EAF7",danger:"C00000",dangerBg:"FCE4D6",success:"548235",successBg:"E2F0D9",neutral:"F4F8FC",text:"1F1F1F"}
 });
 settings.nif=typeof settings.nif==='string'?settings.nif:'';
@@ -1258,15 +1308,20 @@ function updateExcelPreview(){
 function saveExcelColors(){
   const get=id=>(document.getElementById(id)?.value||'').replace('#','').toUpperCase();
   settings.excelColors={primary:get('excel-primary'),secondary:get('excel-secondary'),accent:get('excel-accent'),subtitle:get('excel-subtitle'),subtitleBg:get('excel-subtitle-bg'),danger:get('excel-danger'),dangerBg:get('excel-danger-bg'),success:get('excel-success'),successBg:get('excel-success-bg'),neutral:get('excel-neutral'),text:'1F1F1F'};
-  saveStorage('pos_settings',settings);
+  const ok=saveStorage('pos_settings',settings);
+  if(!ok){alert('Impossible d’enregistrer les couleurs.');return;}
+  loadExcelColorsToUI();
   addAudit('PARAMÈTRES','Couleurs Excel personnalisées');
-  alert('Couleurs Excel enregistrées !');
+  updateSyncUI('Couleurs Excel enregistrées localement.');
+  alert('Couleurs Excel enregistrées et synchronisées !');
 }
 function resetExcelColors(){
   settings.excelColors={primary:"1F4E78",secondary:"D9EAF7",accent:"5B9BD5",subtitle:"17365D",subtitleBg:"D9EAF7",danger:"C00000",dangerBg:"FCE4D6",success:"548235",successBg:"E2F0D9",neutral:"F4F8FC",text:"1F1F1F"};
   saveStorage('pos_settings',settings);
   loadExcelColorsToUI();
-  alert('Couleurs réinitialisées.');
+  addAudit('PARAMÈTRES','Couleurs Excel réinitialisées');
+  updateSyncUI('Couleurs Excel réinitialisées.');
+  alert('Couleurs réinitialisées et enregistrées.');
 }
 
 /* ==== INIT ==== */
@@ -1297,7 +1352,7 @@ function applyLoginLogo(){
   const img=document.getElementById('login-logo-img');
   const icon=document.getElementById('login-logo-icon');
   if(!img||!icon)return;
-  img.src=settings.logo||'assets/kajy_logo.png';
+  img.src=settings.logo||'assets/kajy_logo.svg';
   img.classList.remove('hidden');
   icon.classList.add('hidden');
 }
@@ -1327,7 +1382,7 @@ function applySettingsToUI(){
   const brand=document.getElementById('app-brand-title');
   if(brand)brand.innerHTML=`${settings.shopName} <span class="text-blue-400">& Stock Pro</span>`;
   const appLogo=document.getElementById('app-logo-img');
-  if(appLogo)appLogo.src=settings.logo||'assets/kajy_logo.png';
+  if(appLogo)appLogo.src=settings.logo||'assets/kajy_logo.svg';
   const l=document.getElementById('label-tva-rate');
   if(l)l.innerText=`TVA (${settings.tvaRate}%) :`;
   const rn=document.getElementById('rec-shop-name');if(rn)rn.innerText=settings.shopName;
@@ -1362,7 +1417,7 @@ function saveCompanyLogo(){
 }
 
 function removeCompanyLogo(){
-  settings.logo='assets/kajy_logo.png';
+  settings.logo='assets/kajy_logo.svg';
   saveStorage('pos_settings',settings);
   applyLoginLogo();applySettingsToUI();
   const input=document.getElementById('setting-logo-file');if(input)input.value='';
@@ -1378,10 +1433,12 @@ function saveSettings(e){
   settings.stat=document.getElementById('set-stat').value.trim();
   const si=document.getElementById('set-sync-endpoint');
   settings.syncEndpoint=(si?.value||SYNC_DEFAULT_ENDPOINT).trim();
-  saveStorage('pos_settings',settings);
+  const ok=saveStorage('pos_settings',settings);
+  if(!ok){alert('Impossible d’enregistrer les paramètres. Vérifiez l’espace de stockage.');return;}
   addAudit('PARAMÈTRES','Informations magasin / TVA / NIF / STAT mises à jour');
   applySettingsToUI();
-  alert('Paramètres enregistrés !');
+  updateSyncUI('Paramètres enregistrés localement.');
+  alert('Paramètres enregistrés et mis à jour !');
 }
 
 function openPrivacyModal(){document.getElementById('privacy-modal').classList.remove('hidden');}
@@ -2623,6 +2680,19 @@ function resetSystemData(){
     location.reload();
   }
 }
+
+// Ergonomie Android : focus automatique de la recherche après retour sur le POS.
+document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden && typeof currentTab!=='undefined' && currentTab==='pos'){
+    setTimeout(()=>{const el=document.getElementById('pos-search'); if(el) el.focus({preventScroll:true});},120);
+  }
+});
+// Empêche le double-tap accidentel sur les actions critiques.
+document.addEventListener('dblclick',e=>{
+  const b=e.target.closest('button');
+  if(b && b.type==='submit') return;
+  if(b){ e.preventDefault(); }
+},{passive:false});
 
 function updateOnlineStatus(){
   const dot=document.getElementById('pwa-dot');
