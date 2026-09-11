@@ -1,3 +1,15 @@
+<div align="center">
+  <!-- Votre Logo -->
+  <img src="COLLEZ_VOTRE_LIEN_D_IMAGE_ICI" width="120" height="120" alt="Logo de l'application">
+
+  <!-- Nom de votre Application -->
+  <h1>Mon Application APK</h1>
+
+  <!-- Bouton de téléchargement -->
+  <a href="LIEN_DE_VOTRE_FICHIER_APK">
+    <img width="256" height="256" alt="kajy_logo" src="https://github.com/user-attachments/assets/9f842e04-bdda-4c42-be1c-33711f29993c" />
+  </a>
+</div>
 # KAJY EXPRESS & Stock Pro — Android V5.1.1
 
 Mise à jour Android de l'application web KAJY EXPRESS & Stock Pro 5.1.0.
