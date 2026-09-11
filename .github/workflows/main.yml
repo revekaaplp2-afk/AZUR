@@ -19,9 +19,13 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Rendre gradlew exécutable
+      - name: Installer Gradle Wrapper si absent
         working-directory: KAJY_Android_V5_1_1
-        run: chmod +x gradlew
+        run: |
+          if [ ! -f "gradlew" ]; then
+            gradle wrapper
+          fi
+          chmod +x gradlew
 
       - name: Build APK Debug
         working-directory: KAJY_Android_V5_1_1
