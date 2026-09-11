@@ -1,0 +1,2645 @@
+<!DOCTYPE html>
+<html lang="fr" class="h-full bg-slate-100">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KAJY EXPRESS & Stock Pro 5.1.1 - Système de Caisse</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0f172a">
+<style>
+@media print{body *{visibility:hidden!important}#printable-receipt,#printable-receipt *{visibility:visible!important}#printable-receipt{position:absolute!important;left:0!important;top:0!important;width:100%!important;margin:0!important;padding:15px!important;background:#fff!important;color:#000!important;box-shadow:none!important}}
+#app-logo-container{transition:transform .2s ease,box-shadow .2s ease}#app-logo-container:hover{transform:translateY(-1px) scale(1.03)}
+.custom-scrollbar::-webkit-scrollbar{width:6px}.custom-scrollbar::-webkit-scrollbar-track{background:#f1f5f9}.custom-scrollbar::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}
+.avatar-crop-preview{width:120px;height:120px;border-radius:50%;object-fit:cover;overflow:hidden;position:relative;margin:0 auto;border:3px solid #3b82f6}
+.sales-action{position:relative;z-index:30;pointer-events:auto!important}
+#sales-table-body td:last-child{position:relative;z-index:20}
+/* Bouton Retour Back Office flottant */
+.back-office-return-btn {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 9998;
+    display: none;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    color: white;
+    font-weight: 700;
+    font-size: 13px;
+    border-radius: 9999px;
+    box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.5);
+    transition: all 0.2s ease;
+    cursor: pointer;
+    border: none;
+}
+.back-office-return-btn:hover {
+    transform: translateY(-2px) scale(1.03);
+    box-shadow: 0 15px 30px -5px rgba(99, 102, 241, 0.6);
+}
+.back-office-return-btn.visible {
+    display: flex;
+}
+/* Accordéon */
+.accordion-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+.accordion-content.open {
+    max-height: 500px;
+}
+.accordion-header .chevron {
+    transition: transform 0.3s ease;
+}
+.accordion-header.open .chevron {
+    transform: rotate(180deg);
+}
+</style>
+<style id="kajy-android-mobile">
+/* KAJY Android/mobile optimization — preserves the existing visual identity */
+@media (max-width: 768px){
+  html,body{width:100%;min-width:0;overflow-x:hidden;-webkit-text-size-adjust:100%;}
+  button,input,select,textarea{font-size:16px;}
+  button{min-height:42px;}
+  #app-logo-container{max-width:72vw;}
+  .custom-scrollbar{scrollbar-width:thin;}
+}
+@media (max-width: 480px){
+  .back-office-return-btn{right:12px;bottom:12px;padding:10px 14px;font-size:12px;}
+}
+</style>
+<script>
+window.KAJY_OFFLINE={online:navigator.onLine};
+const isHttp=location.protocol==='http:'||location.protocol==='https:';
+const isElectron=navigator.userAgent.toLowerCase().includes('electron');
+if('serviceWorker' in navigator && isHttp && !isElectron){
+window.addEventListener('load',()=>{navigator.serviceWorker.register('./sw.js',{scope:'./'}).then(r=>console.log('SW actif',r.scope)).catch(e=>console.warn('SW non dispo',e));});
+}
+function updateNetworkStatus(){
+window.KAJY_OFFLINE.online=navigator.onLine;
+const el=document.getElementById('kajy-offline-indicator');
+if(el){el.textContent=navigator.onLine?'● En ligne':'● Hors ligne — données locales';el.className='fixed bottom-3 right-3 z-[9999] px-3 py-1.5 rounded-full text-[10px] font-bold shadow-lg bg-slate-900 text-white';}
+}
+window.addEventListener('online',updateNetworkStatus);
+window.addEventListener('offline',updateNetworkStatus);
+document.addEventListener('DOMContentLoaded',updateNetworkStatus);
+</script>
+</head>
+<body class="h-full font-sans antialiased text-slate-800 flex flex-col">
+<div id="kajy-offline-indicator" aria-live="polite">● Vérification réseau…</div>
+
+<!-- BOUTON RETOUR BACK OFFICE (Flottant) -->
+<button id="back-office-return-btn" class="back-office-return-btn" onclick="switchTab('admin-dashboard')">
+    <i data-lucide="arrow-left" class="w-4 h-4"></i>
+    <span>Retour au Back Office</span>
+</button>
+
+<!-- ÉCRAN LOGIN -->
+<div id="auth-screen" class="fixed inset-0 bg-slate-900 z-50 flex items-center justify-center p-4 overflow-y-auto">
+<div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 space-y-6 my-auto">
+<div class="text-center space-y-2">
+  <div id="login-logo-container" class="w-40 h-40 rounded-full mx-auto flex items-center justify-center overflow-hidden bg-white shadow-xl shadow-blue-500/30 ring-4 ring-blue-500/40">
+    <img id="login-logo-img" src="assets/kajy_logo.png" alt="KAJY Solutions Digitales" class="w-full h-full object-contain p-2">
+    <i id="login-logo-icon" data-lucide="shopping-bag" class="w-9 h-9 text-blue-600 hidden"></i>
+</div>
+<h2 class="font-bold text-xl text-slate-900">Connexion Sécurisée</h2>
+<p class="text-xs text-slate-500">Entrez votre ID Utilisateur et votre Code PIN</p>
+</div>
+<form onsubmit="handleLogin(event)" class="space-y-4">
+<div>
+<label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Utilisateur</label>
+<select id="login-user-select" class="w-full border border-slate-300 rounded-xl p-3 text-xs bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"></select>
+</div>
+<div>
+<label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Code PIN (4 chiffres)</label>
+<input type="password" id="login-pin" maxlength="4" required placeholder="••••" class="w-full border border-slate-300 rounded-xl p-3 text-sm font-mono tracking-widest text-center focus:ring-2 focus:ring-blue-500 focus:outline-none">
+</div>
+<div id="login-error" class="hidden text-center text-xs text-red-600 font-semibold bg-red-50 p-2.5 rounded-lg border border-red-100">Code PIN incorrect ou compte inactif.</div>
+<button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-md shadow-blue-600/20 transition text-sm">Se Connecter au Système</button>
+</form>
+<div class="text-center border-t pt-4 text-[11px] text-slate-400 space-y-1.5">
+<p>ExpressPOS & Stock Pro — Système de Caisse Interactif</p>
+<p class="text-slate-500 font-medium">Synchronisation Multi-PC & Mode PWA Hors-ligne Actifs</p>
+<button type="button" onclick="openPrivacyModal()" class="text-blue-600 hover:underline font-semibold">Termes de Confidentialité</button>
+<p id="login-backup-info" class="text-[10px] text-slate-400 pt-1"></p>
+<p class="text-[10px] text-slate-400">© 2026 ExpressPOS & Stock Pro, Inc. Tous droits réservés.</p>
+</div>
+</div>
+</div>
+
+<!-- MODAL CONFIDENTIALITÉ -->
+<div id="privacy-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+<div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 space-y-4 max-h-[90vh] flex flex-col">
+<div class="flex justify-between items-center border-b pb-3">
+<h3 class="font-bold text-base text-slate-900 flex items-center space-x-2"><i data-lucide="shield-check" class="w-5 h-5 text-blue-600"></i><span>Termes de Confidentialité</span></h3>
+<button onclick="closePrivacyModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg"><i data-lucide="x" class="w-5 h-5"></i></button>
+</div>
+<div class="overflow-y-auto pr-2 space-y-4 text-xs text-slate-600 text-justify leading-relaxed custom-scrollbar">
+<p>Les présentes conditions régissent l'utilisation de l'application ExpressPOS & Stock Pro. Vos données sont stockées localement et synchronisées de manière sécurisée entre vos terminaux connectés.</p>
+</div>
+<div class="border-t pt-3 flex justify-end"><button onclick="closePrivacyModal()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2 rounded-xl text-xs transition shadow-sm">J'ai compris</button></div>
+</div>
+</div>
+
+<!-- APP PRINCIPALE -->
+<div id="main-app" class="hidden flex flex-col flex-grow">
+<header class="bg-slate-900 text-white shadow-md sticky top-0 z-40">
+<div class="max-w-7xl mx-auto px-4 py-2.5 flex justify-between items-center">
+<div class="flex items-center space-x-3">
+<div id="app-logo-container" class="w-11 h-11 rounded-2xl bg-white/95 p-1.5 shadow-lg shadow-blue-950/30 ring-1 ring-white/20 flex items-center justify-center overflow-hidden">
+<img id="app-logo-img" src="assets/kajy_logo.png" alt="Logo" class="w-full h-full object-contain">
+</div>
+<div>
+<h1 id="app-brand-title" class="font-bold text-base leading-tight tracking-wide">ExpressPOS <span class="text-blue-400">& Stock Pro</span></h1>
+<p class="text-[11px] text-slate-400">Réseau Multi-PC Synchronisé</p>
+</div>
+</div>
+<div class="flex items-center space-x-3">
+<div id="pwa-status-badge" class="hidden sm:flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+<span id="pwa-dot" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+<span id="pwa-text">En ligne (PWA)</span>
+</div>
+<div onclick="openAvatarModal()" class="flex items-center space-x-2 cursor-pointer group bg-slate-800/80 hover:bg-slate-800 p-1.5 rounded-full sm:rounded-xl border border-slate-700 transition">
+<div class="w-9 h-9 rounded-full overflow-hidden bg-blue-800/50 border border-blue-400/40 flex items-center justify-center shadow-inner relative">
+<img id="user-avatar-img" src="" alt="Avatar" class="w-full h-full object-cover hidden">
+<i id="user-avatar-icon" data-lucide="user" class="w-4 h-4 text-blue-300"></i>
+<div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition"><i data-lucide="camera" class="w-3.5 h-3.5 text-white"></i></div>
+</div>
+<div class="text-right hidden sm:block pr-1">
+<span id="role-badge" class="px-2 py-0.5 rounded-md font-bold text-[10px] uppercase tracking-wider bg-amber-500 text-slate-950">Administrateur</span>
+<p id="user-display-name" class="font-semibold text-xs text-slate-200 mt-0.5">Utilisateur</p>
+</div>
+</div>
+<button onclick="logout()" class="bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white text-xs px-3 py-1.5 rounded-lg border border-red-500/30 transition flex items-center space-x-1.5">
+<i data-lucide="log-out" class="w-3.5 h-3.5"></i><span class="hidden sm:inline">Déconnexion</span>
+</button>
+</div>
+</div>
+</header>
+
+<!-- NAVIGATION : Uniquement pour les non-admins (Caissiers) -->
+<nav id="main-nav" class="bg-white border-b border-slate-200 shadow-sm sticky top-[53px] z-30 hidden">
+<div class="max-w-7xl mx-auto px-4 flex space-x-2 sm:space-x-4 overflow-x-auto">
+<button onclick="switchTab('pos')" id="tab-pos" class="nav-tab py-3 px-3 text-xs sm:text-sm font-bold border-b-2 border-blue-600 text-blue-600 flex items-center space-x-2 whitespace-nowrap"><i data-lucide="calculator" class="w-4 h-4"></i><span>Terminal POS</span></button>
+<button onclick="switchTab('stock')" id="tab-stock" class="nav-tab py-3 px-3 text-xs sm:text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-800 flex items-center space-x-2 whitespace-nowrap"><i data-lucide="package" class="w-4 h-4"></i><span>Gestion Stock</span></button>
+<button onclick="switchTab('sales')" id="tab-sales" class="nav-tab py-3 px-3 text-xs sm:text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-800 flex items-center space-x-2 whitespace-nowrap"><i data-lucide="receipt" class="w-4 h-4"></i><span>Journal Ventes</span></button>
+<button onclick="switchTab('daily-report')" id="tab-daily-report" class="nav-tab py-3 px-3 text-xs sm:text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-800 flex items-center space-x-2 whitespace-nowrap"><i data-lucide="file-bar-chart" class="w-4 h-4 text-emerald-600"></i><span>Rapport Clôture</span></button>
+<button onclick="switchTab('customers')" id="tab-customers" class="nav-tab py-3 px-3 text-xs sm:text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-800 flex items-center space-x-2 whitespace-nowrap"><i data-lucide="contact" class="w-4 h-4"></i><span>Clients</span></button>
+<button onclick="switchTab('cash')" id="tab-cash" class="nav-tab py-3 px-3 text-xs sm:text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-800 flex items-center space-x-2 whitespace-nowrap"><i data-lucide="wallet-cards" class="w-4 h-4"></i><span>Caisse</span></button>
+</div>
+</nav>
+
+<main class="max-w-7xl mx-auto px-4 py-5 flex-grow w-full">
+
+<!-- POS -->
+<section id="sec-pos" class="tab-content grid grid-cols-1 lg:grid-cols-12 gap-5">
+<div class="lg:col-span-7 space-y-4">
+<div class="bg-white p-3.5 rounded-xl shadow-sm border border-slate-200 space-y-3">
+<div class="relative flex items-center bg-blue-50/60 p-2 rounded-xl border border-blue-200">
+<i data-lucide="scan" class="w-5 h-5 text-blue-600 absolute left-3"></i>
+<input type="text" id="pos-barcode-input" autofocus onkeydown="handleBarcodeScan(event)" placeholder="Scannez ou tapez le code-barres ici (Entrée)..." class="w-full pl-10 pr-3 py-2 bg-white border border-blue-300 rounded-lg text-xs sm:text-sm font-mono font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none">
+</div>
+<div class="flex flex-col sm:flex-row gap-2.5">
+<div class="relative flex-grow">
+<i data-lucide="search" class="w-4 h-4 absolute left-3 top-2.5 text-slate-400"></i>
+<input type="text" id="pos-search" oninput="filterPosProducts()" placeholder="Rechercher par nom ou SKU..." class="w-full pl-9 pr-3 py-1.5 border border-slate-300 rounded-lg text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+</div>
+<select id="pos-cat-filter" onchange="filterPosProducts()" class="border border-slate-300 rounded-lg px-3 py-1.5 text-xs sm:text-sm bg-white"><option value="ALL">Toutes catégories</option></select>
+<select id="pos-stock-filter" onchange="filterPosProducts()" class="border border-slate-300 rounded-lg px-3 py-1.5 text-xs sm:text-sm bg-white">
+<option value="ALL">Tous stocks</option><option value="AVAILABLE">Disponibles</option><option value="LOW">Stock faible</option><option value="OUT">Rupture</option><option value="FAVORITES">Favoris ⭐</option>
+</select>
+<div class="flex border border-slate-300 rounded-lg overflow-hidden bg-white shrink-0">
+<button id="pos-view-grid" onclick="setPosView('grid')" class="px-2 py-1.5 text-blue-600 bg-blue-50"><i data-lucide="grid-2x2" class="w-4 h-4"></i></button>
+<button id="pos-view-list" onclick="setPosView('list')" class="px-2 py-1.5 text-slate-500"><i data-lucide="list" class="w-4 h-4"></i></button>
+<button id="pos-view-compact" onclick="setPosView('compact')" class="px-2 py-1.5 text-slate-500"><i data-lucide="layout-grid" class="w-4 h-4"></i></button>
+</div>
+</div>
+</div>
+<div class="flex flex-wrap items-center justify-between gap-2">
+<div class="text-[11px] text-slate-500"><span id="pos-result-count">0</span> article(s) affiché(s)</div>
+<div class="flex gap-2">
+<button onclick="savePendingCart()" class="px-2.5 py-1.5 text-[11px] font-bold rounded-lg border border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"><i data-lucide="pause" class="w-3 h-3 inline"></i> Mettre en attente</button>
+<button onclick="resumePendingCart()" class="px-2.5 py-1.5 text-[11px] font-bold rounded-lg border border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100"><i data-lucide="play" class="w-3 h-3 inline"></i> Reprendre panier</button>
+</div>
+</div>
+<div id="pos-product-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[520px] overflow-y-auto pr-1 custom-scrollbar"></div>
+</div>
+<div class="lg:col-span-5">
+<div class="bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col h-full justify-between">
+<div>
+<div class="p-3.5 border-b border-slate-100 flex justify-between items-center bg-slate-50/80 rounded-t-xl">
+<h2 class="font-bold text-sm text-slate-800 flex items-center space-x-2"><i data-lucide="shopping-cart" class="w-4 h-4 text-blue-600"></i><span>Panier de Caisse</span></h2>
+<button onclick="clearCart()" class="text-xs text-red-600 hover:text-red-700 hover:underline flex items-center space-x-1"><i data-lucide="rotate-ccw" class="w-3 h-3"></i><span>Vider</span></button>
+</div>
+<div class="p-3.5 max-h-[220px] overflow-y-auto custom-scrollbar">
+<table class="w-full text-left text-xs">
+<thead><tr class="text-slate-400 border-b border-slate-100 uppercase text-[10px] tracking-wider"><th class="pb-2">Article</th><th class="pb-2 text-center">Qté</th><th class="pb-2 text-right">P.U</th><th class="pb-2 text-right">Total</th><th class="pb-2"></th></tr></thead>
+<tbody id="cart-table-body" class="divide-y divide-slate-100"></tbody>
+</table>
+</div>
+</div>
+<div class="p-4 bg-slate-50 border-t border-slate-200 space-y-2.5 rounded-b-xl">
+<div class="grid grid-cols-2 gap-2 bg-blue-50/50 p-2 rounded-lg border border-blue-100">
+<div><label class="text-[10px] font-bold uppercase tracking-wider text-slate-600">Type Remise</label>
+<select id="discount-type" onchange="renderCart()" class="w-full mt-0.5 border border-slate-300 rounded p-1 text-xs bg-white"><option value="none">Aucune</option><option value="percent">Pourcentage (%)</option><option value="amount">Montant fixe (Ar)</option></select></div>
+<div><label class="text-[10px] font-bold uppercase tracking-wider text-slate-600">Valeur Remise</label>
+<input type="number" id="discount-value" oninput="renderCart()" value="0" min="0" class="w-full mt-0.5 border border-slate-300 rounded p-1 text-xs bg-white text-right font-bold"></div>
+</div>
+<div class="space-y-1 text-xs">
+<div class="flex justify-between text-slate-500"><span>Sous-Total Brut :</span><span id="cart-subtotal" class="font-mono">0 Ar</span></div>
+<div class="flex justify-between text-red-600 font-medium"><span>Remise Appliquée :</span><span id="cart-discount-display" class="font-mono">- 0 Ar</span></div>
+<div class="flex justify-between text-slate-500"><span>Sous-Total HT :</span><span id="cart-ht" class="font-mono">0 Ar</span></div>
+<div class="flex justify-between text-slate-500"><span id="label-tva-rate">TVA (20%) :</span><span id="cart-tva" class="font-mono">0 Ar</span></div>
+<div class="flex justify-between font-bold text-base text-slate-900 pt-1 border-t border-slate-200"><span>Total TTC :</span><span id="cart-ttc" class="text-blue-600 font-mono text-lg">0 Ar</span></div>
+</div>
+<div class="grid grid-cols-2 gap-2 pt-1">
+<div><label class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Client</label>
+<select id="pos-customer" class="w-full mt-1 border border-slate-300 rounded-lg p-1.5 text-xs bg-white"><option value="CASH">Client comptoir</option></select></div>
+<div><label class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Mode de Paiement</label>
+<select id="payment-mode" class="w-full mt-1 border border-slate-300 rounded-lg p-1.5 text-xs bg-white"><option value="Espèces">Espèces</option><option value="Carte Bancaire">Carte Bancaire</option><option value="Mobile Money">Mobile Money</option></select></div>
+<div><label class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Montant Reçu (Ar)</label>
+<input type="number" id="amount-paid" oninput="calcChange()" placeholder="0" step="100" class="w-full mt-1 border border-slate-300 rounded-lg p-1.5 text-xs bg-white font-bold text-right"></div>
+</div>
+<div class="flex justify-between items-center text-xs bg-emerald-50 p-2.5 rounded-lg border border-emerald-200 text-emerald-900">
+<span class="font-semibold">Monnaie à Rendre :</span><span id="change-due" class="font-bold font-mono text-base text-emerald-700">0 Ar</span>
+</div>
+<button onclick="processCheckout()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl shadow-sm transition flex justify-center items-center space-x-2 text-xs sm:text-sm">
+<i data-lucide="check-circle-2" class="w-4 h-4"></i><span>Valider & Générer Reçu</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+
+<!-- STOCK -->
+<section id="sec-stock" class="tab-content hidden space-y-4">
+<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+<div><h2 class="font-bold text-base text-slate-800">Catalogue des Articles & Stocks</h2><p class="text-xs text-slate-500">Gestion des prix, suppression d'articles et réapprovisionnement</p></div>
+<div class="flex items-center space-x-2">
+<button onclick="exportStockExcel()" class="bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center space-x-1 shadow-sm transition"><i data-lucide="file-spreadsheet" class="w-4 h-4"></i><span>Exporter (XLSX)</span></button>
+<button onclick="deleteSelectedProducts()" class="admin-only bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center space-x-1 shadow-sm transition"><i data-lucide="trash-2" class="w-4 h-4"></i><span>Supprimer Sélection</span></button>
+<button onclick="openAddProductModal()" class="admin-only bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center space-x-1 shadow-sm transition"><i data-lucide="plus" class="w-4 h-4"></i><span>Nouveau Produit</span></button>
+</div>
+</div>
+<div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex flex-col sm:flex-row gap-2">
+<input type="text" id="stock-search" oninput="renderStockTable()" placeholder="Filtrer par nom ou SKU..." class="flex-grow border border-slate-300 rounded-lg px-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+<select id="stock-cat-filter" onchange="renderStockTable()" class="border border-slate-300 rounded-lg px-3 py-1.5 text-xs bg-white"><option value="ALL">Toutes catégories</option></select>
+</div>
+<div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+<div class="overflow-x-auto"><table class="w-full text-left text-xs">
+<thead class="bg-slate-800 text-white uppercase text-[10px] tracking-wider"><tr>
+<th class="p-3 admin-only text-center"><input type="checkbox" id="select-all-stock" onclick="toggleSelectAllStock(this)"></th>
+<th class="p-3">ID</th><th class="p-3">SKU</th><th class="p-3">Désignation</th><th class="p-3">Catégorie</th>
+<th class="p-3 text-right">Prix Achat HT</th><th class="p-3 text-right">Prix Vente TTC</th><th class="p-3 text-right">Stock</th>
+<th class="p-3 text-right">Seuil Alerte</th><th class="p-3 text-center">Statut</th><th class="p-3 text-center admin-only">Actions</th>
+</tr></thead>
+<tbody id="stock-table-body" class="divide-y divide-slate-100"></tbody>
+</table></div>
+</div>
+</section>
+
+<!-- VENTES -->
+<section id="sec-sales" class="tab-content hidden space-y-4">
+<div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-3">
+<div><h2 class="font-bold text-base text-slate-800">Journal des Transactions & Remboursements</h2><p class="text-xs text-slate-500">Recherchez un ticket, imprimez un duplicata ou effectuez un remboursement</p></div>
+<div class="flex items-center space-x-2 w-full sm:w-auto">
+<div class="relative flex-grow sm:w-64"><i data-lucide="search" class="w-3.5 h-3.5 absolute left-3 top-3 text-slate-400"></i>
+<input type="text" id="sales-search-input" oninput="renderSalesTable()" placeholder="Filtrer par N° ticket ou caissier..." class="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-xs bg-white"></div>
+<button onclick="exportSalesExcel()" class="bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center space-x-1.5"><i data-lucide="file-spreadsheet" class="w-4 h-4"></i><span>Excel</span></button>
+</div>
+</div>
+<div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+<div class="overflow-x-auto"><table class="w-full text-left text-xs">
+<thead class="bg-slate-800 text-white uppercase text-[10px] tracking-wider"><tr>
+<th class="p-3">ID Trans.</th><th class="p-3">Date & Heure</th><th class="p-3">Caissier</th><th class="p-3">Paiement</th>
+<th class="p-3 text-right">Remise</th><th class="p-3 text-right">Total TTC</th><th class="p-3 text-center">Statut</th><th class="p-3 text-center">Actions</th>
+</tr></thead>
+<tbody id="sales-table-body" class="divide-y divide-slate-100"></tbody>
+</table></div>
+</div>
+</section>
+
+<!-- RAPPORT CLOTURE -->
+<section id="sec-daily-report" class="tab-content hidden space-y-5">
+<div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-4">
+<div><h2 class="font-bold text-base text-slate-800 flex items-center space-x-2"><i data-lucide="file-bar-chart" class="w-5 h-5 text-emerald-600"></i><span>Rapport de Fin de Journée</span></h2>
+<p class="text-xs text-slate-500">Synthèse pour les gérants : encaissements et contrôle des écarts de caisse</p></div>
+<div class="flex items-center space-x-2">
+<input type="date" id="daily-report-date" onchange="renderDailyReport()" class="border border-slate-300 rounded-lg px-3 py-2 text-xs bg-white font-semibold">
+<button onclick="exportDailyReportExcel()" class="bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs px-4 py-2 rounded-lg flex items-center space-x-1.5"><i data-lucide="file-spreadsheet" class="w-4 h-4"></i><span>Excel</span></button>
+</div>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+<div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-1"><div class="flex justify-between items-center text-slate-400"><span class="text-[11px] font-bold uppercase">Espèces (Cash)</span><i data-lucide="banknote" class="w-5 h-5 text-emerald-600"></i></div>
+<h3 id="rep-cash-total" class="text-xl font-black text-slate-900 font-mono">0 Ar</h3><p class="text-[10px] text-slate-500" id="rep-cash-count">0 transactions</p></div>
+<div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-1"><div class="flex justify-between items-center text-slate-400"><span class="text-[11px] font-bold uppercase">Mobile Money</span><i data-lucide="smartphone" class="w-5 h-5 text-blue-600"></i></div>
+<h3 id="rep-momo-total" class="text-xl font-black text-slate-900 font-mono">0 Ar</h3><p class="text-[10px] text-slate-500" id="rep-momo-count">0 transactions</p></div>
+<div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-1"><div class="flex justify-between items-center text-slate-400"><span class="text-[11px] font-bold uppercase">Carte Bancaire</span><i data-lucide="credit-card" class="w-5 h-5 text-indigo-600"></i></div>
+<h3 id="rep-card-total" class="text-xl font-black text-slate-900 font-mono">0 Ar</h3><p class="text-[10px] text-slate-500" id="rep-card-count">0 transactions</p></div>
+<div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-1"><div class="flex justify-between items-center text-slate-400"><span class="text-[11px] font-bold uppercase">Total Encaissé TTC</span><i data-lucide="wallet" class="w-5 h-5 text-amber-600"></i></div>
+<h3 id="rep-grand-total" class="text-xl font-black text-blue-600 font-mono">0 Ar</h3><p class="text-[10px] text-slate-500" id="rep-total-count">0 tickets valides</p></div>
+</div>
+<div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 space-y-4">
+<h3 class="font-bold text-xs uppercase tracking-wider text-slate-800 border-b pb-2 flex items-center space-x-2"><i data-lucide="scale" class="w-4 h-4 text-blue-600"></i><span>Contrôle & Écarts de Caisse (Espèces)</span></h3>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+<div><label class="font-bold text-slate-600 block mb-1">Fond de Caisse Initial (Ouverture)</label>
+<input type="number" id="cash-opening" oninput="calcCashDiscrepancy()" value="50000" class="w-full border border-slate-300 p-2.5 rounded-lg font-bold font-mono"></div>
+<div><label class="font-bold text-slate-600 block mb-1">Espèces Réelles Comptées</label>
+<input type="number" id="cash-counted" oninput="calcCashDiscrepancy()" placeholder="Ex: 150000" class="w-full border border-slate-300 p-2.5 rounded-lg font-bold font-mono bg-blue-50/50"></div>
+<div><label class="font-bold text-slate-600 block mb-1">Écart Constaté</label>
+<div id="cash-discrepancy-box" class="w-full border border-slate-300 p-2.5 rounded-lg font-black font-mono bg-slate-100 text-slate-700 flex items-center justify-between">
+<span id="cash-discrepancy-val">0 Ar</span><span id="cash-discrepancy-status" class="text-[10px] px-2 py-0.5 rounded font-bold bg-slate-200 text-slate-700">Équilibre</span></div></div>
+</div>
+</div>
+<div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 space-y-3">
+<div class="flex items-center justify-between gap-3">
+<h3 class="font-bold text-xs uppercase tracking-wider text-slate-800">Remboursements du Jour</h3>
+<div class="flex items-center gap-2 text-[10px]">
+<span class="px-2 py-1 rounded-full bg-red-50 text-red-700 font-bold">Remboursés : <span id="daily-refund-count">0</span></span>
+<span class="px-2 py-1 rounded-full bg-red-50 text-red-700 font-bold">Montant : <span id="daily-refund-total">0 Ar</span></span>
+</div>
+</div>
+<div class="overflow-x-auto"><table class="w-full text-left text-xs">
+<thead class="bg-slate-800 text-white uppercase text-[10px]"><tr><th class="p-2.5">ID Ticket</th><th class="p-2.5">Date & Heure</th><th class="p-2.5">Caissier</th><th class="p-2.5">Paiement</th><th class="p-2.5 text-right">Montant</th></tr></thead>
+<tbody id="refunds-table-body" class="divide-y divide-slate-100"><tr><td colspan="5" class="p-3 text-center text-slate-400">Aucun remboursement.</td></tr></tbody>
+</table></div>
+</div>
+</section>
+
+<!-- BENEFICES -->
+<section id="sec-profits" class="tab-content hidden space-y-5">
+<div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex justify-between items-center">
+<div><h2 class="font-bold text-base text-slate-800">Rapport Financier : Ventes & Bénéfices</h2><p class="text-xs text-slate-500">Suivi consolidé</p></div>
+<button onclick="exportProfitsExcel()" class="bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center space-x-1.5"><i data-lucide="file-spreadsheet" class="w-4 h-4"></i><span>Exporter (XLSX)</span></button>
+</div>
+<div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 space-y-3">
+<h3 class="font-bold text-xs uppercase tracking-wider text-slate-700">Ventes & Bénéfices Journaliers</h3>
+<div class="overflow-x-auto"><table class="w-full text-left text-xs">
+<thead class="bg-slate-800 text-white uppercase text-[10px]"><tr><th class="p-3">Date</th><th class="p-3 text-center">Tickets</th><th class="p-3 text-right">CA HT</th><th class="p-3 text-right">TVA</th><th class="p-3 text-right">CA TTC</th><th class="p-3 text-right">Bénéfice Net</th></tr></thead>
+<tbody id="daily-profits-body" class="divide-y divide-slate-100"></tbody>
+</table></div>
+</div>
+<div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 space-y-3">
+<h3 class="font-bold text-xs uppercase tracking-wider text-slate-700">Ventes & Bénéfices Mensuels</h3>
+<div class="overflow-x-auto"><table class="w-full text-left text-xs">
+<thead class="bg-slate-800 text-white uppercase text-[10px]"><tr><th class="p-3">Mois</th><th class="p-3 text-center">Transactions</th><th class="p-3 text-right">CA HT</th><th class="p-3 text-right">TVA</th><th class="p-3 text-right">CA TTC</th><th class="p-3 text-right">Bénéfice Net</th></tr></thead>
+<tbody id="monthly-profits-body" class="divide-y divide-slate-100"></tbody>
+</table></div>
+</div>
+</section>
+
+<!-- ARTICLES/JOUR -->
+<section id="sec-daily-items" class="tab-content hidden space-y-4">
+<div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-3">
+<div><h2 class="font-bold text-base text-slate-800">Articles Vendus par Jour</h2></div>
+<div class="flex items-center space-x-2">
+<input type="date" id="filter-daily-date" onchange="renderDailyItemsTable()" class="border border-slate-300 rounded-lg px-3 py-1.5 text-xs bg-white">
+<button onclick="exportDailyItemsExcel()" class="bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center space-x-1.5"><i data-lucide="file-spreadsheet" class="w-4 h-4"></i><span>Exporter</span></button>
+</div>
+</div>
+<div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+<div class="overflow-x-auto"><table class="w-full text-left text-xs">
+<thead class="bg-slate-800 text-white uppercase text-[10px]"><tr><th class="p-3">Date</th><th class="p-3">ID</th><th class="p-3">Désignation</th><th class="p-3 text-center">Qté</th><th class="p-3 text-right">CA Total TTC</th></tr></thead>
+<tbody id="daily-items-table-body" class="divide-y divide-slate-100"></tbody>
+</table></div>
+</div>
+</section>
+
+<!-- DASHBOARD -->
+<section id="sec-dashboard" class="tab-content hidden space-y-5">
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+<div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+<div><p class="text-[11px] font-bold uppercase text-slate-400">Chiffre d'Affaires TTC</p><h3 id="kpi-ca" class="text-2xl font-black text-blue-600 mt-1 font-mono">0 Ar</h3></div>
+<div class="bg-blue-50 p-3 rounded-xl text-blue-600"><i data-lucide="wallet" class="w-6 h-6"></i></div>
+</div>
+<div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+<div><p class="text-[11px] font-bold uppercase text-slate-400">Transactions</p><h3 id="kpi-count" class="text-2xl font-black text-slate-800 mt-1 font-mono">0</h3></div>
+<div class="bg-emerald-50 p-3 rounded-xl text-emerald-600"><i data-lucide="shopping-bag" class="w-6 h-6"></i></div>
+</div>
+<div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+<div><p class="text-[11px] font-bold uppercase text-slate-400">Bénéfice Net Total</p><h3 id="kpi-profit" class="text-2xl font-black text-emerald-600 mt-1 font-mono">0 Ar</h3></div>
+<div class="bg-emerald-50 p-3 rounded-xl text-emerald-600"><i data-lucide="trending-up" class="w-6 h-6"></i></div>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+<div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3"><h3 class="font-bold text-xs uppercase text-slate-500">Paiements</h3><div class="h-60 relative"><canvas id="chart-payments"></canvas></div></div>
+<div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3"><h3 class="font-bold text-xs uppercase text-slate-500">Stock Critique</h3><div class="h-60 relative"><canvas id="chart-stock"></canvas></div></div>
+</div>
+</section>
+
+<!-- BACK OFFICE / ADMIN DASHBOARD -->
+<section id="sec-admin-dashboard" class="tab-content hidden space-y-5">
+    <!-- En-tête -->
+    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <div>
+            <h2 class="font-bold text-lg text-slate-800">Tableau de bord Administrateur</h2>
+            <p class="text-xs text-slate-500">Bienvenue, <span id="admin-welcome-name" class="font-semibold text-blue-600">Administrateur</span></p>
+        </div>
+        <div class="text-right text-xs text-slate-400 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
+            <p id="admin-current-date">Chargement...</p>
+        </div>
+    </div>
+
+    <!-- Grille de KPIs -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div>
+                <p class="text-[11px] font-bold uppercase text-slate-400">Ventes ce mois</p>
+                <h3 id="admin-kpi-sales" class="text-xl font-black text-slate-800 font-mono mt-1">0 Ar</h3>
+                <p class="text-[10px] text-slate-500 mt-0.5" id="admin-kpi-sales-count">0 commandes</p>
+            </div>
+            <div class="bg-blue-50 p-2.5 rounded-lg text-blue-600"><i data-lucide="trending-up" class="w-5 h-5"></i></div>
+        </div>
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div>
+                <p class="text-[11px] font-bold uppercase text-slate-400">Commandes totales</p>
+                <h3 id="admin-kpi-orders" class="text-xl font-black text-slate-800 font-mono mt-1">0</h3>
+                <p class="text-[10px] text-slate-500 mt-0.5">Toutes périodes</p>
+            </div>
+            <div class="bg-emerald-50 p-2.5 rounded-lg text-emerald-600"><i data-lucide="shopping-cart" class="w-5 h-5"></i></div>
+        </div>
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div>
+                <p class="text-[11px] font-bold uppercase text-slate-400">Produits</p>
+                <h3 id="admin-kpi-products" class="text-xl font-black text-slate-800 font-mono mt-1">0</h3>
+                <p class="text-[10px] text-slate-500 mt-0.5">Articles au catalogue</p>
+            </div>
+            <div class="bg-amber-50 p-2.5 rounded-lg text-amber-600"><i data-lucide="package" class="w-5 h-5"></i></div>
+        </div>
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div>
+                <p class="text-[11px] font-bold uppercase text-slate-400">Alertes Stock</p>
+                <h3 id="admin-kpi-alerts" class="text-xl font-black text-red-600 font-mono mt-1">0</h3>
+                <p class="text-[10px] text-slate-500 mt-0.5">Produits en rupture</p>
+            </div>
+            <div class="bg-red-50 p-2.5 rounded-lg text-red-600"><i data-lucide="alert-triangle" class="w-5 h-5"></i></div>
+        </div>
+    </div>
+
+    <!-- Activité et Navigation -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <div class="lg:col-span-2 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+            <h3 class="font-bold text-sm text-slate-800 border-b pb-2 mb-3 flex items-center space-x-2">
+                <i data-lucide="activity" class="w-4 h-4 text-blue-600"></i>
+                <span>Activité récente</span>
+            </h3>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead class="text-slate-400 uppercase text-[10px] tracking-wider border-b">
+                        <tr>
+                            <th class="pb-2">Date</th>
+                            <th class="pb-2">Caissier</th>
+                            <th class="pb-2 text-right">Montant</th>
+                            <th class="pb-2 text-center">Statut</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admin-recent-activity-body" class="divide-y divide-slate-100">
+                        <tr><td colspan="4" class="p-4 text-center text-slate-400">Chargement...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Tableau de bord (ancien Raccourcis rapides) -->
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+            <h3 class="font-bold text-sm text-slate-800 border-b pb-2 mb-3 flex items-center space-x-2">
+                <i data-lucide="zap" class="w-4 h-4 text-amber-500"></i>
+                <span>Tableau de bord</span>
+            </h3>
+            <div class="space-y-2">
+
+                <!-- Catégorie : Ventes & Caisse -->
+                <div class="accordion-item border border-slate-200 rounded-lg overflow-hidden">
+                    <button class="accordion-header w-full flex items-center justify-between p-3 bg-blue-50 hover:bg-blue-100 text-left transition" onclick="toggleAccordion(this)">
+                        <span class="flex items-center space-x-2 text-xs font-bold text-blue-700"><i data-lucide="shopping-cart" class="w-4 h-4"></i><span>Ventes & Caisse</span></span>
+                        <i data-lucide="chevron-down" class="chevron w-4 h-4 text-blue-600"></i>
+                    </button>
+                    <div class="accordion-content bg-white">
+                        <div class="p-2 space-y-1">
+                            <button onclick="switchTab('pos')" class="w-full text-left p-2.5 hover:bg-blue-50 rounded-lg text-xs font-medium text-slate-700 transition flex items-center space-x-2"><i data-lucide="calculator" class="w-3.5 h-3.5 text-blue-600"></i><span>Terminal POS</span></button>
+                            <button onclick="switchTab('sales')" class="w-full text-left p-2.5 hover:bg-blue-50 rounded-lg text-xs font-medium text-slate-700 transition flex items-center space-x-2"><i data-lucide="receipt" class="w-3.5 h-3.5 text-blue-600"></i><span>Journal Ventes</span></button>
+                            <button onclick="switchTab('daily-report')" class="w-full text-left p-2.5 hover:bg-blue-50 rounded-lg text-xs font-medium text-slate-700 transition flex items-center space-x-2"><i data-lucide="file-bar-chart" class="w-3.5 h-3.5 text-blue-600"></i><span>Rapport Clôture</span></button>
+                            <button onclick="switchTab('cash')" class="w-full text-left p-2.5 hover:bg-blue-50 rounded-lg text-xs font-medium text-slate-700 transition flex items-center space-x-2"><i data-lucide="wallet-cards" class="w-3.5 h-3.5 text-blue-600"></i><span>Caisse</span></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Catégorie : Stock & Produits -->
+                <div class="accordion-item border border-slate-200 rounded-lg overflow-hidden">
+                    <button class="accordion-header w-full flex items-center justify-between p-3 bg-emerald-50 hover:bg-emerald-100 text-left transition" onclick="toggleAccordion(this)">
+                        <span class="flex items-center space-x-2 text-xs font-bold text-emerald-700"><i data-lucide="package" class="w-4 h-4"></i><span>Stock & Produits</span></span>
+                        <i data-lucide="chevron-down" class="chevron w-4 h-4 text-emerald-600"></i>
+                    </button>
+                    <div class="accordion-content bg-white">
+                        <div class="p-2 space-y-1">
+                            <button onclick="switchTab('stock')" class="w-full text-left p-2.5 hover:bg-emerald-50 rounded-lg text-xs font-medium text-slate-700 transition flex items-center space-x-2"><i data-lucide="package" class="w-3.5 h-3.5 text-emerald-600"></i><span>Gestion Stock</span></button>
+                            <button onclick="switchTab('movements')" class="w-full text-left p-2.5 hover:bg-emerald-50 rounded-lg text-xs font-medium text-slate-700 transition flex items-center space-x-2"><i data-lucide="arrow-left-right" class="w-3.5 h-3.5 text-emerald-600"></i><span>Mouvements</span></button>
+                            <button onclick="switchTab('daily-items')" class="w-full text-left p-2.5 hover:bg-emerald-50 rounded-lg text-xs font-medium text-slate-700 transition flex items-center space-x-2"><i data-lucide="list-ordered" class="w-3.5 h-3.5 text-emerald-600"></i><span>Articles/Jour</span></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Catégorie : Analyses & Rapports -->
+                <div class="accordion-item border border-slate-200 rounded-lg overflow-hidden">
+                    <button class="accordion-header w-full flex items-center justify-between p-3 bg-amber-50 hover:bg-amber-100 text-left transition" onclick="toggleAccordion(this)">
+                        <span class="flex items-center space-x-2 text-xs font-bold text-amber-700"><i data-lucide="trending-up" class="w-4 h-4"></i><span>Analyses & Rapports</span></span>
+                        <i data-lucide="chevron-down" class="chevron w-4 h-4 text-amber-600"></i>
+                    </button>
+                    <div class="accordion-content bg-white">
+                        <div class="p-2 space-y-1">
+                            <button onclick="switchTab('profits')" class="w-full text-left p-2.5 hover:bg-amber-50 rounded-lg text-xs font-medium text-slate-700 transition flex items-center space-x-2"><i data-lucide="trending-up" class="w-3.5 h-3.5 text-amber-600"></i><span>Bénéfices</span></button>
+                            <button onclick="switchTab('dashboard')" class="w-full text-left p-2.5 hover:bg-amber-50 rounded-lg text-xs font-medium text-slate-700 transition flex items-center space-x-2"><i data-lucide="layout-dashboard" class="w-3.5 h-3.5 text-amber-600"></i><span>Tableau de Bord</span></button>
+                            <button onclick="switchTab('audit')" class="w-full text-left p-2.5 hover:bg-amber-50 rounded-lg text-xs font-medium text-slate-700 transition flex items-center space-x-2"><i data-lucide="shield-check" class="w-3.5 h-3.5 text-amber-600"></i><span>Audit</span></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Catégorie : Gestion & Configuration -->
+                <div class="accordion-item border border-slate-200 rounded-lg overflow-hidden">
+                    <button class="accordion-header w-full flex items-center justify-between p-3 bg-slate-100 hover:bg-slate-200 text-left transition" onclick="toggleAccordion(this)">
+                        <span class="flex items-center space-x-2 text-xs font-bold text-slate-700"><i data-lucide="settings" class="w-4 h-4"></i><span>Gestion & Configuration</span></span>
+                        <i data-lucide="chevron-down" class="chevron w-4 h-4 text-slate-600"></i>
+                    </button>
+                    <div class="accordion-content bg-white">
+                        <div class="p-2 space-y-1">
+                            <button onclick="switchTab('customers')" class="w-full text-left p-2.5 hover:bg-slate-50 rounded-lg text-xs font-medium text-slate-700 transition flex items-center space-x-2"><i data-lucide="contact" class="w-3.5 h-3.5 text-slate-600"></i><span>Clients</span></button>
+                            <button onclick="switchTab('users')" class="w-full text-left p-2.5 hover:bg-slate-50 rounded-lg text-xs font-medium text-slate-700 transition flex items-center space-x-2"><i data-lucide="users" class="w-3.5 h-3.5 text-slate-600"></i><span>Utilisateurs</span></button>
+                            <button onclick="switchTab('settings')" class="w-full text-left p-2.5 hover:bg-slate-50 rounded-lg text-xs font-medium text-slate-700 transition flex items-center space-x-2"><i data-lucide="settings" class="w-3.5 h-3.5 text-slate-600"></i><span>Paramètres</span></button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- UTILISATEURS (Accessible via Back Office) -->
+<section id="sec-users" class="tab-content hidden space-y-4">
+<div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex justify-between items-center">
+<div><h2 class="font-bold text-base text-slate-800">Gestion des Utilisateurs</h2></div>
+<button onclick="openAddUserModal()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center space-x-1"><i data-lucide="user-plus" class="w-4 h-4"></i><span>Ajouter</span></button>
+</div>
+<div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+<table class="w-full text-left text-xs"><thead class="bg-slate-800 text-white uppercase text-[10px]"><tr><th class="p-3">ID</th><th class="p-3">Nom</th><th class="p-3">Rôle</th><th class="p-3 text-center">PIN</th><th class="p-3 text-center">Statut</th><th class="p-3 text-center">Actions</th></tr></thead>
+<tbody id="users-table-body" class="divide-y divide-slate-100"></tbody></table>
+</div>
+</section>
+
+<!-- CLIENTS -->
+<section id="sec-customers" class="tab-content hidden space-y-4">
+<div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col sm:flex-row justify-between gap-3">
+<div><h2 class="font-bold text-base text-slate-800">Gestion des Clients</h2><p class="text-xs text-slate-500">Historique et fidélisation.</p></div>
+<button onclick="addCustomer()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-2 rounded-lg">+ Nouveau Client</button>
+</div>
+<div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200"><input id="customer-search" oninput="renderCustomers()" placeholder="Rechercher..." class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs"></div>
+<div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+<div class="overflow-x-auto"><table class="w-full text-left text-xs">
+<thead class="bg-slate-800 text-white uppercase text-[10px]"><tr><th class="p-3">Nom</th><th class="p-3">Téléphone</th><th class="p-3">Type</th><th class="p-3 text-right">Achats</th><th class="p-3 text-right">Total TTC</th><th class="p-3 text-center">Actions</th></tr></thead>
+<tbody id="customers-table-body" class="divide-y divide-slate-100"></tbody>
+</table></div>
+</div>
+</section>
+
+<!-- CAISSE -->
+<section id="sec-cash" class="tab-content hidden space-y-4">
+<div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 space-y-4">
+<div class="flex justify-between items-center">
+<div><h2 class="font-bold text-base text-slate-800">Gestion de Caisse</h2><p class="text-xs text-slate-500">Ouverture et clôture de caisse.</p></div>
+<span id="cash-session-status" class="px-2 py-1 rounded-full text-[10px] font-bold bg-red-100 text-red-700">FERMÉE</span>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+<div class="bg-slate-50 p-3 rounded-lg"><p class="text-[10px] uppercase font-bold text-slate-400">Fond initial</p><p id="cash-session-opening" class="font-black font-mono mt-1">0 Ar</p></div>
+<div class="bg-slate-50 p-3 rounded-lg"><p class="text-[10px] uppercase font-bold text-slate-400">Espèces attendues</p><p id="cash-session-expected" class="font-black font-mono mt-1">0 Ar</p></div>
+<div class="bg-slate-50 p-3 rounded-lg"><p class="text-[10px] uppercase font-bold text-slate-400">Session</p><p id="cash-session-date" class="font-bold text-xs mt-1">Aucune</p></div>
+</div>
+<div class="flex flex-wrap gap-2">
+<button onclick="openCashSession()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-xs font-bold">Ouvrir</button>
+<button onclick="closeCashSession()" class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg text-xs font-bold">Clôturer</button>
+</div>
+</div>
+</section>
+
+<!-- MOUVEMENTS -->
+<section id="sec-movements" class="tab-content hidden space-y-4">
+<div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-3">
+<div><h2 class="font-bold text-base text-slate-800">Mouvements de Stock</h2><p class="text-xs text-slate-500">Entrées, sorties, ventes, retours et corrections.</p></div>
+<div class="flex gap-2">
+<button onclick="exportMovementsExcel()" class="bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center gap-1.5"><i data-lucide="file-spreadsheet" class="w-4 h-4"></i>Exporter Excel</button>
+<button onclick="manualStockMovement()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-2 rounded-lg">+ Manuel</button>
+</div>
+</div>
+<div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+<div class="overflow-x-auto"><table class="w-full text-left text-xs">
+<thead class="bg-slate-800 text-white uppercase text-[10px]"><tr><th class="p-3">Date</th><th class="p-3">Produit</th><th class="p-3">Type</th><th class="p-3 text-right">Qté</th><th class="p-3">Motif</th><th class="p-3">Utilisateur</th></tr></thead>
+<tbody id="movements-table-body" class="divide-y divide-slate-100"></tbody>
+</table></div>
+</div>
+</section>
+
+<!-- AUDIT -->
+<section id="sec-audit" class="tab-content hidden space-y-4">
+<div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-3">
+<div><h2 class="font-bold text-base text-slate-800">Journal d'Audit</h2><p class="text-xs text-slate-500">Traçabilité des actions.</p></div>
+<div class="flex gap-2">
+<button onclick="exportAuditExcel()" class="bg-emerald-800 hover:bg-emerald-900 text-white px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5"><i data-lucide="file-spreadsheet" class="w-4 h-4"></i>Exporter Excel</button>
+<button onclick="clearAuditLog()" class="bg-red-50 text-red-600 px-3 py-2 rounded-lg text-xs font-bold">Effacer</button>
+</div>
+</div>
+<div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+<div class="overflow-x-auto"><table class="w-full text-left text-xs">
+<thead class="bg-slate-800 text-white uppercase text-[10px]"><tr><th class="p-3">Date</th><th class="p-3">Utilisateur</th><th class="p-3">Action</th><th class="p-3">Détail</th></tr></thead>
+<tbody id="audit-table-body" class="divide-y divide-slate-100"></tbody>
+</table></div>
+</div>
+</section>
+
+<!-- PARAMETRES (Accessible uniquement via Back Office) -->
+<section id="sec-settings" class="tab-content hidden space-y-5">
+<div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 space-y-4">
+<h2 class="font-bold text-base text-slate-800 flex items-center space-x-2 border-b pb-3"><i data-lucide="settings" class="w-5 h-5 text-blue-600"></i><span>Paramètres Généraux</span></h2>
+<form onsubmit="saveSettings(event)" class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+<div><label class="font-bold text-slate-600">Nom du Magasin</label><input type="text" id="set-shop-name" class="w-full mt-1 border border-slate-300 p-2.5 rounded-lg font-semibold" required></div>
+<div><label class="font-bold text-slate-600">Adresse</label><input type="text" id="set-shop-address" class="w-full mt-1 border border-slate-300 p-2.5 rounded-lg" required></div>
+<div><label class="font-bold text-slate-600">Téléphone</label><input type="text" id="set-shop-phone" class="w-full mt-1 border border-slate-300 p-2.5 rounded-lg" required></div>
+<div><label class="font-bold text-slate-600">Taux de TVA (%)</label><input type="number" id="set-tva-rate" step="1" min="0" max="100" class="w-full mt-1 border border-slate-300 p-2.5 rounded-lg" required></div>
+<div class="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
+<label class="font-bold text-slate-600">Logo de l'entreprise</label>
+<input id="setting-logo-file" type="file" accept="image/*" class="w-full text-xs">
+<p class="text-[10px] text-slate-500">Compression auto (512px, &lt;800 Ko).</p>
+<div class="flex items-center gap-2">
+<button type="button" onclick="saveCompanyLogo()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold">Enregistrer</button>
+<button type="button" onclick="removeCompanyLogo()" class="bg-white border border-slate-300 px-3 py-1.5 rounded-lg text-xs font-semibold">Supprimer</button>
+</div>
+</div>
+<div>
+<label class="font-bold text-slate-600">NIF</label><input type="text" id="set-nif" maxlength="50" class="w-full mt-1 border border-slate-300 p-2.5 rounded-lg" autocomplete="off">
+</div>
+<div>
+<label class="font-bold text-slate-600">STAT</label><input type="text" id="set-stat" maxlength="50" class="w-full mt-1 border border-slate-300 p-2.5 rounded-lg" autocomplete="off">
+</div>
+<div class="sm:col-span-2 pt-2 flex justify-end"><button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2.5 rounded-xl transition shadow-sm">Enregistrer les Paramètres</button></div>
+</form>
+</div>
+
+<!-- PALETTE EXCEL -->
+<div class="bg-white p-5 rounded-xl shadow-sm border border-purple-200 space-y-4">
+<h2 class="font-bold text-base text-slate-800 flex items-center space-x-2 border-b pb-3"><i data-lucide="palette" class="w-5 h-5 text-purple-600"></i><span>Préférences de Couleur — Exports Excel</span></h2>
+<p class="text-xs text-slate-500">Personnalisez les couleurs des rapports Excel exportés.</p>
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+<div class="grid grid-cols-2 gap-3 text-xs">
+<div><label class="font-bold text-slate-600 block mb-1">Couleur principale</label><input type="color" id="excel-primary" class="w-full h-10 border border-slate-300 rounded-lg cursor-pointer"></div>
+<div><label class="font-bold text-slate-600 block mb-1">Couleur secondaire (KPI)</label><input type="color" id="excel-secondary" class="w-full h-10 border border-slate-300 rounded-lg cursor-pointer"></div>
+<div><label class="font-bold text-slate-600 block mb-1">Accent (étiquettes)</label><input type="color" id="excel-accent" class="w-full h-10 border border-slate-300 rounded-lg cursor-pointer"></div>
+<div><label class="font-bold text-slate-600 block mb-1">Sous-titre (texte)</label><input type="color" id="excel-subtitle" class="w-full h-10 border border-slate-300 rounded-lg cursor-pointer"></div>
+<div><label class="font-bold text-slate-600 block mb-1">Sous-titre (fond)</label><input type="color" id="excel-subtitle-bg" class="w-full h-10 border border-slate-300 rounded-lg cursor-pointer"></div>
+<div><label class="font-bold text-slate-600 block mb-1">Danger (alertes)</label><input type="color" id="excel-danger" class="w-full h-10 border border-slate-300 rounded-lg cursor-pointer"></div>
+<div><label class="font-bold text-slate-600 block mb-1">Danger (fond)</label><input type="color" id="excel-danger-bg" class="w-full h-10 border border-slate-300 rounded-lg cursor-pointer"></div>
+<div><label class="font-bold text-slate-600 block mb-1">Succès (OK)</label><input type="color" id="excel-success" class="w-full h-10 border border-slate-300 rounded-lg cursor-pointer"></div>
+<div><label class="font-bold text-slate-600 block mb-1">Succès (fond)</label><input type="color" id="excel-success-bg" class="w-full h-10 border border-slate-300 rounded-lg cursor-pointer"></div>
+<div><label class="font-bold text-slate-600 block mb-1">Ligne alternée</label><input type="color" id="excel-neutral" class="w-full h-10 border border-slate-300 rounded-lg cursor-pointer"></div>
+</div>
+<div class="border border-slate-300 rounded-lg p-3 bg-slate-50">
+<p class="text-[10px] uppercase font-bold text-slate-500 mb-2">Aperçu</p>
+<div class="space-y-2 text-[10px]">
+<div id="preview-title" class="text-center font-bold py-2 rounded text-white">KAJY — RAPPORT</div>
+<div id="preview-subtitle" class="text-center font-bold py-1 rounded">Sous-titre</div>
+<div class="grid grid-cols-2 gap-2">
+<div id="preview-kpi-label" class="text-center font-bold py-1 rounded text-white">Articles</div>
+<div id="preview-kpi-value" class="text-center font-bold py-1 rounded">42</div>
+</div>
+<table class="w-full text-[9px] border border-slate-300">
+<thead><tr id="preview-table-head" class="text-white"><th class="p-1">Col A</th><th class="p-1">Col B</th></tr></thead>
+<tbody><tr id="preview-row-1"><td class="p-1 border">L1</td><td class="p-1 border">123</td></tr>
+<tr id="preview-row-2"><td class="p-1 border">L2</td><td class="p-1 border">456</td></tr></tbody>
+</table>
+</div>
+</div>
+</div>
+<div class="flex flex-wrap gap-2 pt-2">
+<button type="button" onclick="saveExcelColors()" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-xs font-bold">Enregistrer les couleurs</button>
+<button type="button" onclick="resetExcelColors()" class="bg-slate-200 hover:bg-slate-300 text-slate-800 px-4 py-2 rounded-lg text-xs font-bold">Réinitialiser</button>
+<button type="button" onclick="exportStockExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-xs font-bold">Tester sur Export Stock</button>
+</div>
+</div>
+
+<!-- SAUVEGARDE AUTO -->
+<div class="bg-white p-5 rounded-xl shadow-sm border border-amber-200 space-y-4">
+<h2 class="font-bold text-base text-slate-800 flex items-center space-x-2 border-b pb-3"><i data-lucide="save" class="w-5 h-5 text-amber-600"></i><span>Sauvegarde Automatique Locale</span></h2>
+<p class="text-xs text-slate-500">Instantané complet toutes les 5 minutes + démarrage + fermeture. Les 3 dernières sont conservées.</p>
+<p id="auto-backup-indicator" class="text-xs font-semibold text-amber-700">💾 Aucune sauvegarde auto</p>
+<div class="flex flex-wrap gap-3 pt-2">
+<button onclick="autoBackupNow('manuelle')" class="bg-amber-600 hover:bg-amber-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center space-x-2"><i data-lucide="save" class="w-4 h-4"></i><span>Créer maintenant</span></button>
+<button onclick="restoreFromAutoBackup(0)" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center space-x-2"><i data-lucide="history" class="w-4 h-4"></i><span>Restaurer</span></button>
+<button onclick="showAutoBackupsList()" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center space-x-2"><i data-lucide="list" class="w-4 h-4"></i><span>Voir</span></button>
+<button onclick="clearAutoBackups()" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold px-4 py-2.5 rounded-xl text-xs flex items-center space-x-2"><i data-lucide="trash" class="w-4 h-4"></i><span>Purger</span></button>
+</div>
+</div>
+
+<!-- MAINTENANCE -->
+<div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 space-y-4">
+<h2 class="font-bold text-base text-slate-800 flex items-center space-x-2 border-b pb-3"><i data-lucide="database" class="w-5 h-5 text-emerald-600"></i><span>Maintenance, Sauvegarde & Réseau</span></h2>
+<div class="flex flex-wrap gap-3 pt-2">
+<button onclick="exportDatabaseBackup()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center space-x-2"><i data-lucide="download" class="w-4 h-4"></i><span>Télécharger JSON</span></button>
+<label class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center space-x-2 cursor-pointer">
+<i data-lucide="upload" class="w-4 h-4"></i><span>Restaurer JSON</span>
+<input type="file" id="import-file" accept=".json" onchange="importDatabaseBackup(event)" class="hidden">
+</label>
+<button onclick="resetSystemData()" class="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center space-x-2"><i data-lucide="trash-2" class="w-4 h-4"></i><span>Réinitialiser</span></button>
+</div>
+</div>
+
+<!-- NETTOYAGE ADMIN -->
+<div class="bg-white p-5 rounded-xl shadow-sm border border-red-200 space-y-4 admin-only">
+<div><h2 class="font-bold text-base text-red-700 flex items-center space-x-2"><i data-lucide="eraser" class="w-5 h-5"></i><span>Nettoyage commercial</span></h2>
+<p class="text-xs text-slate-500 mt-1">Réservé à l'Administrateur.</p></div>
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+<button onclick="adminClearStockData()" class="bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 font-bold px-4 py-3 rounded-xl text-xs text-left"><span class="block">Vider Stock</span><span class="block text-[10px] font-normal mt-1">Quantités à 0</span></button>
+<button onclick="adminClearSalesData()" class="bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 font-bold px-4 py-3 rounded-xl text-xs text-left"><span class="block">Vider Ventes</span><span class="block text-[10px] font-normal mt-1">Supprimer journal</span></button>
+<button onclick="adminClearMovementsData()" class="bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 font-bold px-4 py-3 rounded-xl text-xs text-left"><span class="block">Vider Mouvements</span><span class="block text-[10px] font-normal mt-1">Entrées/sorties</span></button>
+<button onclick="adminClearCommercialData()" class="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-3 rounded-xl text-xs text-left shadow-sm"><span class="block">Tout vider</span><span class="block text-[10px] font-normal mt-1 text-red-100">Stock + ventes + mvt</span></button>
+</div>
+</div>
+</section>
+
+</main>
+</div>
+
+<!-- MODAL AVATAR -->
+<div id="avatar-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+<div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-5">
+<div class="flex justify-between items-center border-b pb-3">
+<h3 class="font-bold text-sm text-slate-900 flex items-center space-x-2"><i data-lucide="user-cog" class="w-5 h-5 text-blue-600"></i><span>Modifier mon Avatar</span></h3>
+<button onclick="closeAvatarModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg"><i data-lucide="x" class="w-5 h-5"></i></button>
+</div>
+<div class="space-y-4 text-xs">
+<div class="text-center space-y-2">
+<div class="avatar-crop-preview bg-slate-100 flex items-center justify-center border-2 border-blue-500 shadow-md">
+<img id="avatar-preview-img" src="" alt="Aperçu" class="w-full h-full object-cover hidden">
+<i id="avatar-preview-icon" data-lucide="user" class="w-10 h-10 text-slate-400"></i>
+</div>
+<p class="text-[11px] text-slate-500 font-medium">Format circulaire</p>
+</div>
+<div class="flex rounded-xl bg-slate-100 p-1 border border-slate-200">
+<button type="button" onclick="switchAvatarTab('local')" id="btn-tab-local" class="flex-1 py-2 font-bold rounded-lg text-xs bg-white text-blue-600 shadow-sm transition">Depuis appareil</button>
+<button type="button" onclick="switchAvatarTab('url')" id="btn-tab-url" class="flex-1 py-2 font-bold rounded-lg text-xs text-slate-600 transition">Depuis URL</button>
+</div>
+<div id="avatar-pane-local" class="space-y-3">
+<label class="block w-full border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-xl p-4 text-center cursor-pointer bg-slate-50 transition">
+<i data-lucide="upload-cloud" class="w-8 h-8 text-blue-500 mx-auto mb-1"></i>
+<span class="font-bold text-slate-700 block text-xs">Choisir une image</span>
+<span class="text-[10px] text-slate-400 block mt-0.5">JPG, PNG, WEBP</span>
+<input type="file" id="local-avatar-input" accept=".jpg, .jpeg, .png, .webp" onchange="handleLocalImageSelect(event)" class="hidden">
+</label>
+</div>
+<div id="avatar-pane-url" class="space-y-3 hidden">
+<div><label class="font-bold text-slate-600 block mb-1">URL de l'image</label>
+<div class="flex gap-2"><input type="url" id="online-avatar-url" placeholder="https://..." class="flex-grow border border-slate-300 rounded-xl p-2.5 text-xs font-mono">
+<button type="button" onclick="verifyOnlineImageUrl()" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2.5 rounded-xl font-bold transition">Vérifier</button></div></div>
+<div id="url-error-msg" class="hidden text-xs text-red-600 font-semibold bg-red-50 p-2 rounded border border-red-100">Image inaccessible.</div>
+</div>
+<div id="avatar-success-msg" class="hidden text-xs text-emerald-700 font-semibold bg-emerald-50 p-2.5 rounded-xl border border-emerald-200 text-center flex items-center justify-center space-x-1.5">
+<i data-lucide="check-circle" class="w-4 h-4 text-emerald-600"></i><span>Avatar modifié !</span>
+</div>
+</div>
+<div class="border-t pt-3 flex justify-between items-center">
+<button type="button" onclick="removeAvatar()" class="text-red-600 hover:text-red-700 font-bold text-xs flex items-center space-x-1 px-3 py-2 rounded-lg hover:bg-red-50 transition"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i><span>Supprimer</span></button>
+<div class="flex space-x-2">
+<button type="button" onclick="closeAvatarModal()" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold px-4 py-2 rounded-xl text-xs transition">Fermer</button>
+<button type="button" onclick="saveUserAvatar()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2 rounded-xl text-xs transition shadow-sm">Enregistrer</button>
+</div>
+</div>
+</div>
+</div>
+
+<!-- MODAL REÇU -->
+<div id="receipt-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+<div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-5 space-y-4">
+<div id="printable-receipt" class="font-mono text-xs text-slate-800 border p-4 rounded-xl bg-slate-50 space-y-3">
+<div class="text-center space-y-0.5 border-b pb-3">
+<h3 id="rec-shop-name" class="font-bold text-sm tracking-wide">SUPERMARCHÉ EXPRESS</h3>
+<p id="rec-shop-addr" class="text-[10px] text-slate-500"></p>
+<p id="rec-shop-phone" class="text-[10px] text-slate-500"></p>
+<p id="rec-shop-nif" class="text-[10px] text-slate-500 hidden"></p>
+<p id="rec-shop-stat" class="text-[10px] text-slate-500 hidden"></p>
+</div>
+<div class="text-[10px] space-y-0.5">
+<p>Ticket N° : <span id="rec-id" class="font-bold"></span></p>
+<p>Date : <span id="rec-date"></span></p>
+<p>Caissier : <span id="rec-cashier"></span></p>
+<p>Paiement : <span id="rec-paymode"></span></p>
+<p>Client : <span id="rec-customer">Client comptoir</span></p>
+</div>
+<table class="w-full text-[10px] text-left border-t border-b py-2">
+<thead><tr class="border-b text-slate-500"><th class="pb-1">Article</th><th class="pb-1 text-center">Qté</th><th class="pb-1 text-right">Total</th></tr></thead>
+<tbody id="rec-items-body" class="divide-y divide-slate-100"></tbody>
+</table>
+<div class="space-y-1 text-right text-[11px] pt-1">
+<p class="flex justify-between"><span>Sous-Total :</span> <span id="rec-subtotal">0 Ar</span></p>
+<p class="flex justify-between text-red-600"><span>Remise :</span> <span id="rec-discount">0 Ar</span></p>
+<p class="flex justify-between"><span>HT :</span> <span id="rec-ht">0 Ar</span></p>
+<p class="flex justify-between"><span id="rec-label-tva">TVA :</span> <span id="rec-tva">0 Ar</span></p>
+<p class="flex justify-between font-bold text-sm text-slate-900 pt-1 border-t"><span>TTC :</span> <span id="rec-ttc">0 Ar</span></p>
+<p class="flex justify-between text-slate-600"><span>Reçu :</span> <span id="rec-paid">0 Ar</span></p>
+<p class="flex justify-between text-emerald-700 font-bold"><span>Rendu :</span> <span id="rec-change">0 Ar</span></p>
+</div>
+<div class="text-center text-[10px] text-slate-400 pt-3 border-t"><p id="rec-footer-notice">Merci !</p></div>
+</div>
+<div class="grid grid-cols-2 gap-2">
+<button onclick="window.print()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-xl text-xs flex justify-center items-center space-x-1"><i data-lucide="printer" class="w-3.5 h-3.5"></i><span>Imprimer</span></button>
+<button onclick="exportReceiptPDF()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-xl text-xs flex justify-center items-center space-x-1"><i data-lucide="file-text" class="w-3.5 h-3.5"></i><span>PDF</span></button>
+<button onclick="exportReceiptExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-xl text-xs flex justify-center items-center space-x-1"><i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i><span>Excel</span></button>
+<button onclick="closeReceiptModal()" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-2 rounded-xl text-xs">Fermer</button>
+</div>
+</div>
+</div>
+
+<!-- MODAL AJOUT PRODUIT -->
+<div id="add-product-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+<div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-5 space-y-4">
+<div class="flex justify-between items-center border-b pb-2">
+<h3 class="font-bold text-sm text-slate-800">Ajouter un Article</h3>
+<button onclick="closeAddProductModal()" class="text-slate-400"><i data-lucide="x" class="w-4 h-4"></i></button>
+</div>
+<form onsubmit="saveNewProduct(event)" class="space-y-3 text-xs">
+<div><label class="font-semibold text-slate-600">SKU / Code-barre</label><input type="text" id="new-sku" required class="w-full mt-1 border border-slate-300 p-2 rounded-lg"></div>
+<div><label class="font-semibold text-slate-600">Désignation</label><input type="text" id="new-name" required class="w-full mt-1 border border-slate-300 p-2 rounded-lg"></div>
+<div class="grid grid-cols-2 gap-2">
+<div><label class="font-semibold text-slate-600">Catégorie</label><select id="new-cat" onchange="checkNewCategory(this.value)" class="w-full mt-1 border border-slate-300 p-2 rounded-lg bg-white"></select></div>
+<div><label class="font-semibold text-slate-600">Stock Initial</label><input type="number" id="new-stock" required min="1" class="w-full mt-1 border border-slate-300 p-2 rounded-lg"></div>
+</div>
+<div id="new-category-wrapper" class="hidden"><label class="font-semibold text-slate-600">Nouvelle catégorie</label><input type="text" id="custom-new-cat" class="w-full mt-1 border border-slate-300 p-2 rounded-lg"></div>
+<div class="grid grid-cols-2 gap-2">
+<div><label class="font-semibold text-slate-600">Prix Achat HT</label><input type="number" id="new-cost" step="100" required class="w-full mt-1 border border-slate-300 p-2 rounded-lg"></div>
+<div><label class="font-semibold text-slate-600">Prix Vente TTC</label><input type="number" id="new-price" step="100" required class="w-full mt-1 border border-slate-300 p-2 rounded-lg"></div>
+</div>
+<div class="flex gap-2 pt-2">
+<button type="submit" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-xl">Enregistrer</button>
+<button type="button" onclick="closeAddProductModal()" class="flex-1 bg-slate-200 text-slate-800 font-bold py-2 rounded-xl">Annuler</button>
+</div>
+</form>
+</div>
+</div>
+
+<!-- MODAL UTILISATEUR -->
+<div id="user-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+<div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-5 space-y-4">
+<div class="flex justify-between items-center border-b pb-2">
+<h3 id="user-modal-title" class="font-bold text-sm text-slate-800">Ajouter un Utilisateur</h3>
+<button onclick="closeUserModal()" class="text-slate-400"><i data-lucide="x" class="w-4 h-4"></i></button>
+</div>
+<form onsubmit="saveUserForm(event)" class="space-y-3 text-xs">
+<input type="hidden" id="edit-user-id">
+<div><label class="font-semibold text-slate-600">Nom & Prénom</label><input type="text" id="user-fullname" required class="w-full mt-1 border border-slate-300 p-2 rounded-lg"></div>
+<div class="grid grid-cols-2 gap-2">
+<div><label class="font-semibold text-slate-600">Rôle</label><select id="user-role-select" class="w-full mt-1 border border-slate-300 p-2 rounded-lg bg-white"><option value="ADMIN">Administrateur</option><option value="RESPONSIBLE">Responsable</option><option value="CASHIER">Caissier</option></select></div>
+<div><label class="font-semibold text-slate-600">PIN (4 chiffres)</label><input type="text" id="user-pin" maxlength="4" required class="w-full mt-1 border border-slate-300 p-2 rounded-lg font-mono"></div>
+</div>
+<div class="grid grid-cols-2 gap-2">
+<div><label class="font-semibold text-slate-600">Statut</label><select id="user-status-select" class="w-full mt-1 border border-slate-300 p-2 rounded-lg bg-white"><option value="Actif">Actif</option><option value="Inactif">Inactif</option></select></div>
+<div><label class="font-semibold text-slate-600">URL Avatar</label><input type="text" id="user-avatar-url" class="w-full mt-1 border border-slate-300 p-2 rounded-lg font-mono text-[11px]"></div>
+</div>
+<div class="flex gap-2 pt-2">
+<button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-xl">Enregistrer</button>
+<button type="button" onclick="closeUserModal()" class="flex-1 bg-slate-200 text-slate-800 font-bold py-2 rounded-xl">Annuler</button>
+</div>
+</form>
+</div>
+</div>
+
+<script>
+/* ============================================================================
+   KAJY EXPRESS & Stock Pro v5.1.0
+   ============================================================================ */
+const APP_VERSION='5.1.1';
+const APP_STORAGE_PREFIX='pos_';
+const SYNC_QUEUE_KEY='pos_sync_queue';
+const SYNC_META_KEY='pos_sync_meta';
+const DEVICE_ID_KEY='pos_device_id';
+const AUTO_BACKUP_KEY='pos_auto_backup';
+const AUTO_BACKUP_LAST='pos_last_auto_backup';
+const AUTO_BACKUP_INTERVAL=5*60*1000;
+const AUTO_BACKUP_MAX=3;
+const SYNC_DEFAULT_ENDPOINT=(location.protocol==='http:'||location.protocol==='https:')?(location.origin+'/api/sync'):'http://localhost:3000/api/sync';
+
+function localDateISO(date=new Date()){const y=date.getFullYear();const m=String(date.getMonth()+1).padStart(2,'0');const d=String(date.getDate()).padStart(2,'0');return `${y}-${m}-${d}`;}
+function localDateTimeISO(date=new Date()){return `${localDateISO(date)} ${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}:${String(date.getSeconds()).padStart(2,'0')}`;}
+
+let currentUser=null;
+let currentRole='ADMIN';
+let tempAvatarData='';
+let cart=[];
+let currentReceipt=null;
+let chartPaymentInstance=null;
+let chartStockInstance=null;
+let _syncWriteGuard=false;
+let autoBackupTimer=null;
+let syncTimer=null;
+
+function loadStorage(key,defaultVal){try{const data=localStorage.getItem(key);if(!data)return defaultVal;const parsed=JSON.parse(data);return parsed===null||parsed===undefined?defaultVal:parsed;}catch(e){console.warn('Donnée invalide',key,e);return defaultVal;}}
+function saveStorageRaw(key,val){try{localStorage.setItem(key,JSON.stringify(val));return true;}catch(e){console.warn('saveStorageRaw failed',key,e);return false;}}
+
+let settings=loadStorage('pos_settings',{
+  shopName:"SUPERMARCHÉ EXPRESS",address:"102 Route d'Ivato, Antananarivo",phone:"+261 34 00 000 00",
+  nif:"",stat:"",tvaRate:20,logo:"assets/kajy_logo.png",syncEndpoint:"",
+  excelColors:{primary:"1F4E78",secondary:"D9EAF7",accent:"5B9BD5",subtitle:"17365D",subtitleBg:"D9EAF7",danger:"C00000",dangerBg:"FCE4D6",success:"548235",successBg:"E2F0D9",neutral:"F4F8FC",text:"1F1F1F"}
+});
+settings.nif=typeof settings.nif==='string'?settings.nif:'';
+settings.stat=typeof settings.stat==='string'?settings.stat:'';
+settings.logo=typeof settings.logo==='string'&&settings.logo.trim()?settings.logo:'assets/kajy_logo.png';
+settings.syncEndpoint=typeof settings.syncEndpoint==='string'?settings.syncEndpoint:'';
+settings.excelColors=Object.assign({primary:"1F4E78",secondary:"D9EAF7",accent:"5B9BD5",subtitle:"17365D",subtitleBg:"D9EAF7",danger:"C00000",dangerBg:"FCE4D6",success:"548235",successBg:"E2F0D9",neutral:"F4F8FC",text:"1F1F1F"},settings.excelColors||{});
+
+let products=loadStorage('pos_products',[
+{id:'ART-001',sku:'3700101001',name:'Café Express Robusta 250g',cat:'Épicerie',cost:12500,price:22500,stock:85,alert:15},
+{id:'ART-002',sku:'3700101002',name:'Thé Vert Bio Menthe 100g',cat:'Épicerie',cost:15000,price:29000,stock:42,alert:10},
+{id:'ART-003',sku:'3700101003',name:'Eau Minérale 1.5L (Pack x6)',cat:'Boissons',cost:9000,price:16000,stock:120,alert:20},
+{id:'ART-004',sku:'3700101004',name:'Jus d\'Orange Pur Jus 1L',cat:'Boissons',cost:6000,price:12000,stock:8,alert:15},
+{id:'ART-005',sku:'3700101005',name:'Chocolat Noir 70% 100g',cat:'Confiserie',cost:5500,price:10500,stock:65,alert:10},
+{id:'ART-006',sku:'3700101006',name:'Biscuits Sablés Beurre 200g',cat:'Confiserie',cost:4500,price:9000,stock:5,alert:12},
+{id:'ART-007',sku:'3700101007',name:'Huile d\'Olive Vierge 75cl',cat:'Épicerie',cost:27500,price:49500,stock:30,alert:8},
+{id:'ART-008',sku:'3700101008',name:'Pâtes Penne Rigate 500g',cat:'Épicerie',cost:3000,price:6000,stock:150,alert:25},
+{id:'ART-009',sku:'3700101009',name:'Savon Liquide Mains 500ml',cat:'Hygiène',cost:7000,price:14500,stock:18,alert:10},
+{id:'ART-010',sku:'3700101010',name:'Gel Douche Premium 250ml',cat:'Hygiène',cost:9000,price:18000,stock:4,alert:10}
+]);
+
+let users=loadStorage('pos_users',[
+{id:'USR-001',name:'REVEKA Tohandrae Rasidy',role:'ADMIN',pin:'9900',status:'Actif',avatar:''},
+{id:'USR-002',name:'Andry Responsable Stock',role:'RESPONSIBLE',pin:'4321',status:'Actif',avatar:''},
+{id:'USR-003',name:'Jean Dupont',role:'CASHIER',pin:'1234',status:'Actif',avatar:''}
+]);
+
+let sales=loadStorage('pos_sales',[
+{id:'TRX-1001',date:'2026-08-05 09:12',cashier:'Jean Dupont',payment:'Espèces',discountAmount:0,ht:62500,tva:12500,ttc:75000,profit:27500,status:'Payé',items:[{id:'ART-001',name:'Café Express Robusta 250g',qty:2,price:22500,cost:12500}]},
+{id:'TRX-1002',date:'2026-08-06 11:30',cashier:'REVEKA Tohandrae Rasidy',payment:'Mobile Money',discountAmount:0,ht:13333,tva:2667,ttc:16000,profit:7000,status:'Payé',items:[{id:'ART-003',name:'Eau Minérale 1.5L (Pack x6)',qty:1,price:16000,cost:9000}]}
+]);
+sales=sales.filter(s=>!s?.isRefundTest&&!String(s?.id||'').startsWith('TEST-REF-'));
+saveStorageRaw('pos_sales',sales);
+
+let customers=loadStorage('pos_customers',[{id:'CLI-002',name:'Client professionnel',phone:'',type:'Professionnel'}]);
+let stockMovements=loadStorage('pos_stock_movements',[]);
+let auditLogs=loadStorage('pos_audit_logs',[]);
+let cashSession=loadStorage('pos_cash_session',null);
+
+function normalizeData(){
+  if(!Array.isArray(products))products=[];
+  if(!Array.isArray(users))users=[];
+  if(!Array.isArray(sales))sales=[];
+  if(!Array.isArray(customers))customers=[];
+  if(!Array.isArray(stockMovements))stockMovements=[];
+  if(!Array.isArray(auditLogs))auditLogs=[];
+  if(!settings||typeof settings!=='object')settings={};
+  settings.shopName=String(settings.shopName||'SUPERMARCHÉ EXPRESS');
+  settings.address=String(settings.address||'');
+  settings.phone=String(settings.phone||'');
+  settings.nif=String(settings.nif||'');
+  settings.stat=String(settings.stat||'');
+  settings.tvaRate=Number.isFinite(Number(settings.tvaRate))?Number(settings.tvaRate):20;
+}
+
+function runDataMigration(){
+  normalizeData();
+  customers=customers.filter(c=>c.id!=='CASH'&&String(c.name||'').trim().toLowerCase()!=='client comptoir');
+  sales.forEach(s=>{if(s.customerId==='CLI-001'||String(s.customerName||'').trim().toLowerCase()==='client comptoir'){s.customerId='CASH';s.customerName='Client comptoir';}});
+  saveStorageRaw('pos_products',products);
+  saveStorageRaw('pos_customers',customers);
+  saveStorageRaw('pos_sales',sales);
+  localStorage.setItem('pos_schema_version','4.4');
+}
+
+/* ==== SAUVEGARDE AUTO ==== */
+function buildSnapshot(){return{app:'ExpressPOS',version:APP_VERSION,schema:4,savedAt:localDateTimeISO(),settings,products,users,sales,customers,stockMovements,auditLogs,cashSession};}
+function autoBackupNow(reason='automatique'){
+  try{
+    const snapshot=buildSnapshot();
+    const payload=JSON.stringify(snapshot);
+    const sizeKB=Math.round((payload.length*0.75)/1024);
+    if(sizeKB>3000){console.warn('Snapshot trop volumineux, ignoré',sizeKB,'Ko');return false;}
+    let history=[];
+    try{history=JSON.parse(localStorage.getItem(AUTO_BACKUP_KEY)||'[]');if(!Array.isArray(history))history=[];}catch(_){history=[];}
+    history.unshift({reason,savedAt:snapshot.savedAt,sizeKB,data:snapshot});
+    history=history.slice(0,AUTO_BACKUP_MAX);
+    localStorage.setItem(AUTO_BACKUP_KEY,JSON.stringify(history));
+    localStorage.setItem(AUTO_BACKUP_LAST,snapshot.savedAt);
+    updateAutoBackupIndicator();
+    console.log(`✅ Sauvegarde auto (${reason}) — ${sizeKB} Ko`);
+    return true;
+  }catch(err){
+    if(err&&(err.name==='QuotaExceededError'||err.code===22)){
+      try{const h=JSON.parse(localStorage.getItem(AUTO_BACKUP_KEY)||'[]');localStorage.setItem(AUTO_BACKUP_KEY,JSON.stringify(h.slice(0,1)));return autoBackupNow(reason);}catch(e2){console.error(e2);}
+    }
+    console.error('Erreur sauvegarde auto:',err);
+    return false;
+  }
+}
+function restoreFromAutoBackup(index=0){
+  try{
+    const history=JSON.parse(localStorage.getItem(AUTO_BACKUP_KEY)||'[]');
+    if(!history.length){alert('Aucune sauvegarde auto.');return;}
+    const snap=history[index];
+    if(!snap||!snap.data){alert('Snapshot corrompu.');return;}
+    if(!confirm(`Restaurer la sauvegarde "${snap.reason}" du ${snap.savedAt} ?`))return;
+    const d=snap.data;
+    saveStorageRaw('pos_settings',d.settings||settings);
+    saveStorageRaw('pos_products',d.products||products);
+    saveStorageRaw('pos_users',d.users||users);
+    saveStorageRaw('pos_sales',d.sales||sales);
+    saveStorageRaw('pos_customers',d.customers||customers);
+    saveStorageRaw('pos_stock_movements',d.stockMovements||[]);
+    saveStorageRaw('pos_audit_logs',d.auditLogs||[]);
+    saveStorageRaw('pos_cash_session',d.cashSession||null);
+    alert('Sauvegarde restaurée. Rechargement...');
+    location.reload();
+  }catch(err){alert('Erreur restauration : '+err.message);}
+}
+function showAutoBackupsList(){
+  try{
+    const h=JSON.parse(localStorage.getItem(AUTO_BACKUP_KEY)||'[]');
+    if(!h.length){alert('Aucune sauvegarde disponible.');return;}
+    const list=h.map((x,i)=>`${i+1}. ${x.savedAt} — ${x.reason} (${x.sizeKB} Ko)`).join('\n');
+    const raw=prompt(`Sauvegardes disponibles :\n\n${list}\n\nNuméro (ou Annuler) :`);
+    const idx=Number(raw)-1;
+    if(!Number.isInteger(idx)||!h[idx])return;
+    restoreFromAutoBackup(idx);
+  }catch(e){alert('Erreur : '+e.message);}
+}
+function clearAutoBackups(){
+  if(!confirm('Supprimer toutes les sauvegardes auto ?'))return;
+  localStorage.removeItem(AUTO_BACKUP_KEY);
+  localStorage.removeItem(AUTO_BACKUP_LAST);
+  updateAutoBackupIndicator();
+  alert('Sauvegardes supprimées.');
+}
+function updateAutoBackupIndicator(){
+  const el=document.getElementById('auto-backup-indicator');
+  const login=document.getElementById('login-backup-info');
+  const last=localStorage.getItem(AUTO_BACKUP_LAST);
+  const txt=last?`💾 Dernière sauvegarde auto : ${last}`:'💾 Aucune sauvegarde auto';
+  if(el)el.textContent=txt;
+  if(login)login.textContent=last?`Dernière sauvegarde : ${last}`:'';
+}
+function startAutoBackup(){
+  if(autoBackupTimer)clearInterval(autoBackupTimer);
+  setTimeout(()=>autoBackupNow('démarrage'),3000);
+  autoBackupTimer=setInterval(()=>autoBackupNow('périodique'),AUTO_BACKUP_INTERVAL);
+}
+window.addEventListener('beforeunload',()=>{autoBackupNow('fermeture');});
+
+/* ==== SYNC ==== */
+function getDeviceId(){let id=localStorage.getItem(DEVICE_ID_KEY);if(!id){id=(typeof crypto!=='undefined'&&crypto.randomUUID)?crypto.randomUUID():('kajy-'+Date.now()+'-'+Math.random().toString(16).slice(2));localStorage.setItem(DEVICE_ID_KEY,id);}return id;}
+function getSyncQueue(){return loadStorage(SYNC_QUEUE_KEY,[]);}
+function updateSyncUI(message){
+  const info=document.getElementById('sync-queue-info');
+  const badge=document.getElementById('sync-settings-status');
+  const indicator=document.getElementById('kajy-offline-indicator');
+  const q=getSyncQueue();
+  if(info)info.textContent=q.length?`${q.length} modification(s) en attente.`:(message||'Toutes les données sont synchronisées.');
+  if(badge){badge.textContent=!navigator.onLine?'Hors ligne':(q.length?'En attente':'Synchronisé');badge.className='text-[10px] font-bold px-2 py-1 rounded-full '+(!navigator.onLine?'bg-amber-100 text-amber-700':(q.length?'bg-blue-100 text-blue-700':'bg-emerald-100 text-emerald-700'));}
+  if(indicator&&navigator.onLine&&q.length===0)indicator.textContent='● En ligne — données synchronisées';
+}
+function queueSyncChange(key,val){
+  if(_syncWriteGuard)return;
+  if([SYNC_QUEUE_KEY,SYNC_META_KEY,DEVICE_ID_KEY,AUTO_BACKUP_KEY,AUTO_BACKUP_LAST].includes(key))return;
+  try{
+    _syncWriteGuard=true;
+    const queue=getSyncQueue();
+    queue.push({id:`${getDeviceId()}-${Date.now()}-${Math.random().toString(16).slice(2)}`,key,value:val,updatedAt:new Date().toISOString(),deviceId:getDeviceId()});
+    const compact=[];
+    queue.forEach(x=>{const idx=compact.findIndex(y=>y.key===x.key);if(idx>=0)compact[idx]=x;else compact.push(x);});
+    try{localStorage.setItem(SYNC_QUEUE_KEY,JSON.stringify(compact));}catch(_){}
+    updateSyncUI();
+    if(navigator.onLine)scheduleSync();
+  }finally{_syncWriteGuard=false;}
+}
+function scheduleSync(){clearTimeout(syncTimer);syncTimer=setTimeout(()=>syncNow(false),350);}
+function getSyncEndpoint(){return(settings.syncEndpoint||SYNC_DEFAULT_ENDPOINT||'').trim();}
+async function syncNow(manual=false){
+  const endpoint=getSyncEndpoint();
+  if(!navigator.onLine){updateSyncUI('Hors ligne.');return false;}
+  if(!endpoint){updateSyncUI('Serveur non configuré.');return false;}
+  const queue=getSyncQueue();
+  if(!queue.length){updateSyncUI('Tout est synchronisé.');return true;}
+  try{
+    const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({app:'KAJY EXPRESS & Stock Pro',version:APP_VERSION,deviceId:getDeviceId(),changes:queue})});
+    if(!response.ok)throw new Error(`HTTP ${response.status}`);
+    const result=await response.json().catch(()=>({}));
+    localStorage.setItem(SYNC_META_KEY,JSON.stringify({lastSync:new Date().toISOString(),endpoint}));
+    localStorage.setItem(SYNC_QUEUE_KEY,JSON.stringify([]));
+    if(result.state)applyRemoteSyncState(result.state);
+    updateSyncUI('Synchronisation OK.');
+    return true;
+  }catch(error){
+    console.warn('Sync impossible :',error);
+    updateSyncUI('Connexion serveur impossible.');
+    if(manual)alert('Synchronisation impossible. Les données restent locales.');
+    return false;
+  }
+}
+function mergeSyncArray(localValue,remoteValue){
+  if(!Array.isArray(localValue)||!Array.isArray(remoteValue))return remoteValue;
+  const map=new Map();
+  [...remoteValue,...localValue].forEach(item=>{
+    const id=item&&(item.id||item._id);
+    if(id==null)return;
+    if(!map.has(id))map.set(id,item);
+    else{const old=map.get(id);const a=Date.parse(old.updatedAt||old._syncUpdatedAt||'')||0;const b=Date.parse(item.updatedAt||item._syncUpdatedAt||'')||0;map.set(id,b>=a?item:old);}
+  });
+  return Array.from(map.values());
+}
+function applyRemoteSyncState(state){
+  if(!state||typeof state!=='object')return;
+  const mappings={'pos_products':'products','pos_users':'users','pos_sales':'sales','pos_customers':'customers','pos_stock_movements':'stockMovements','pos_audit_logs':'auditLogs','pos_cash_session':'cashSession','pos_settings':'settings'};
+  Object.entries(mappings).forEach(([key,prop])=>{
+    if(state[prop]===undefined)return;
+    const local=loadStorage(key,state[prop]);
+    const value=Array.isArray(local)?mergeSyncArray(local,state[prop]):state[prop];
+    localStorage.setItem(key,JSON.stringify(value));
+  });
+  syncDataFromStorage();
+}
+async function bootstrapSync(){
+  if(!navigator.onLine)return false;
+  const endpoint=getSyncEndpoint();
+  if(!endpoint)return false;
+  try{
+    const response=await fetch(endpoint,{method:'GET',headers:{'Accept':'application/json'}});
+    if(!response.ok)throw new Error(`HTTP ${response.status}`);
+    const result=await response.json();
+    if(result.state)applyRemoteSyncState(result.state);
+    if(!localStorage.getItem('pos_sync_initialized')){
+      ['pos_settings','pos_products','pos_users','pos_sales','pos_customers','pos_stock_movements','pos_audit_logs','pos_cash_session'].forEach(key=>{const raw=localStorage.getItem(key);if(raw!==null)queueSyncChange(key,JSON.parse(raw));});
+      localStorage.setItem('pos_sync_initialized','1');
+      await syncNow(false);
+    }
+    return true;
+  }catch(error){console.warn('Init sync impossible :',error);return false;}
+}
+function clearSyncQueue(){
+  if(!confirm('Vider la file locale de synchronisation ?'))return;
+  localStorage.setItem(SYNC_QUEUE_KEY,JSON.stringify([]));
+  updateSyncUI();
+}
+
+function saveStorage(key,val){
+  try{
+    const payload=JSON.stringify(val);
+    if(payload.length>4_000_000)console.warn(`Donnée volumineuse "${key}" (${Math.round(payload.length/1024)} Ko)`);
+    localStorage.setItem(key,payload);
+    setTimeout(()=>window.dispatchEvent(new Event('storage_sync')),0);
+    queueSyncChange(key,val);
+    return true;
+  }catch(error){
+    if(error.name==='QuotaExceededError'||error.code===22){
+      try{const b=localStorage.getItem(AUTO_BACKUP_KEY);if(b&&b.length>10000){localStorage.setItem(AUTO_BACKUP_KEY,'[]');return saveStorage(key,val);}}catch(_){}
+      alert('Stockage saturé. Exportez une sauvegarde JSON puis réinitialisez.');
+    }else console.error('Erreur sauvegarde',key,error);
+    return false;
+  }
+}
+
+function escapeHtml(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function safeNum(v){const n=Number(v);return Number.isFinite(n)?n:0;}
+function formatAriary(amount){const n=Number(amount);if(!Number.isFinite(n))return '0 Ar';return new Intl.NumberFormat('fr-FR',{maximumFractionDigits:0,useGrouping:true}).format(Math.round(n))+' Ar';}
+
+function compressImage(file,maxWidth=512,quality=0.85){
+  return new Promise((resolve,reject)=>{
+    if(!file||!file.type.startsWith('image/')){reject(new Error('Fichier non valide'));return;}
+    const reader=new FileReader();
+    reader.onerror=()=>reject(new Error('Lecture impossible'));
+    reader.onload=(e)=>{
+      const img=new Image();
+      img.onerror=()=>reject(new Error('Image corrompue'));
+      img.onload=()=>{
+        const canvas=document.createElement('canvas');
+        let{width,height}=img;
+        if(width>maxWidth){height=Math.round(height*(maxWidth/width));width=maxWidth;}
+        canvas.width=width;canvas.height=height;
+        const ctx=canvas.getContext('2d');
+        ctx.imageSmoothingQuality='high';
+        ctx.drawImage(img,0,0,width,height);
+        const hasAlpha=file.type==='image/png';
+        const outputType=hasAlpha?'image/png':'image/jpeg';
+        resolve(canvas.toDataURL(outputType,quality));
+      };
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+/* ==== GESTION COULEURS EXCEL ==== */
+function excelColorsToCss(c){const hex=v=>'#'+(v||'').replace('#','');return{primary:hex(c.primary),secondary:hex(c.secondary),accent:hex(c.accent),danger:hex(c.danger),dangerBg:hex(c.dangerBg),success:hex(c.success),successBg:hex(c.successBg),neutral:hex(c.neutral),text:hex(c.text),subtitle:hex(c.subtitle),subtitleBg:hex(c.subtitleBg)};}
+function loadExcelColorsToUI(){
+  const c=settings.excelColors||{};
+  const map={'excel-primary':c.primary,'excel-secondary':c.secondary,'excel-accent':c.accent,'excel-subtitle':c.subtitle,'excel-subtitle-bg':c.subtitleBg,'excel-danger':c.danger,'excel-danger-bg':c.dangerBg,'excel-success':c.success,'excel-success-bg':c.successBg,'excel-neutral':c.neutral};
+  Object.entries(map).forEach(([id,val])=>{const el=document.getElementById(id);if(el&&val)el.value='#'+val.replace('#','');});
+  Object.keys(map).forEach(id=>{const el=document.getElementById(id);if(el)el.oninput=updateExcelPreview;});
+  updateExcelPreview();
+}
+function updateExcelPreview(){
+  const get=id=>(document.getElementById(id)?.value||'').replace('#','').toUpperCase();
+  const css=excelColorsToCss({primary:get('excel-primary'),secondary:get('excel-secondary'),accent:get('excel-accent'),subtitle:get('excel-subtitle'),subtitleBg:get('excel-subtitle-bg'),danger:get('excel-danger'),dangerBg:get('excel-danger-bg'),success:get('excel-success'),successBg:get('excel-success-bg'),neutral:get('excel-neutral')});
+  const set=(id,s)=>{const el=document.getElementById(id);if(el)Object.assign(el.style,s);};
+  set('preview-title',{backgroundColor:css.primary,color:'#fff'});
+  set('preview-subtitle',{backgroundColor:css.subtitleBg,color:css.subtitle});
+  set('preview-kpi-label',{backgroundColor:css.accent,color:'#fff'});
+  set('preview-kpi-value',{backgroundColor:css.secondary,color:css.subtitle});
+  set('preview-table-head',{backgroundColor:css.primary});
+  set('preview-row-1',{backgroundColor:'#ffffff'});
+  set('preview-row-2',{backgroundColor:css.neutral});
+}
+function saveExcelColors(){
+  const get=id=>(document.getElementById(id)?.value||'').replace('#','').toUpperCase();
+  settings.excelColors={primary:get('excel-primary'),secondary:get('excel-secondary'),accent:get('excel-accent'),subtitle:get('excel-subtitle'),subtitleBg:get('excel-subtitle-bg'),danger:get('excel-danger'),dangerBg:get('excel-danger-bg'),success:get('excel-success'),successBg:get('excel-success-bg'),neutral:get('excel-neutral'),text:'1F1F1F'};
+  saveStorage('pos_settings',settings);
+  addAudit('PARAMÈTRES','Couleurs Excel personnalisées');
+  alert('Couleurs Excel enregistrées !');
+}
+function resetExcelColors(){
+  settings.excelColors={primary:"1F4E78",secondary:"D9EAF7",accent:"5B9BD5",subtitle:"17365D",subtitleBg:"D9EAF7",danger:"C00000",dangerBg:"FCE4D6",success:"548235",successBg:"E2F0D9",neutral:"F4F8FC",text:"1F1F1F"};
+  saveStorage('pos_settings',settings);
+  loadExcelColorsToUI();
+  alert('Couleurs réinitialisées.');
+}
+
+/* ==== INIT ==== */
+runDataMigration();
+window.addEventListener('storage',()=>syncDataFromStorage());
+window.addEventListener('storage_sync',()=>syncDataFromStorage());
+window.addEventListener('online',()=>{updateOnlineStatus();updateSyncUI();setTimeout(()=>bootstrapSync(),300);});
+window.addEventListener('offline',()=>{updateOnlineStatus();updateSyncUI('Hors ligne.');});
+
+document.addEventListener('DOMContentLoaded',()=>{
+  applyLoginLogo();
+  if(typeof lucide!=='undefined')lucide.createIcons();
+  populateLoginSelect();
+  applySettingsToUI();
+  updateSyncUI();
+  updateAutoBackupIndicator();
+  startAutoBackup();
+  loadExcelColorsToUI();
+  if(navigator.onLine)setTimeout(()=>bootstrapSync(),800);
+  updateCategoryDropdowns();
+  updateOnlineStatus();
+  const todayStr=localDateISO();
+  const rd=document.getElementById('daily-report-date');if(rd)rd.value=todayStr;
+  const dd=document.getElementById('filter-daily-date');if(dd)dd.value=todayStr;
+});
+
+function applyLoginLogo(){
+  const img=document.getElementById('login-logo-img');
+  const icon=document.getElementById('login-logo-icon');
+  if(!img||!icon)return;
+  img.src=settings.logo||'assets/kajy_logo.png';
+  img.classList.remove('hidden');
+  icon.classList.add('hidden');
+}
+
+function syncDataFromStorage(){
+  settings=loadStorage('pos_settings',settings);
+  products=loadStorage('pos_products',products);
+  users=loadStorage('pos_users',users);
+  sales=loadStorage('pos_sales',sales);
+  customers=loadStorage('pos_customers',customers);
+  stockMovements=loadStorage('pos_stock_movements',stockMovements);
+  auditLogs=loadStorage('pos_audit_logs',auditLogs);
+  cashSession=loadStorage('pos_cash_session',cashSession);
+  applySettingsToUI();
+  updateCategoryDropdowns();
+  if(currentUser){
+    const u=users.find(x=>x.id===currentUser.id);
+    if(u){currentUser=u;updateUserAvatarUI();}
+    renderPosProducts();renderStockTable();renderSalesTable();renderDailyReport();
+    renderProfitsTables();renderDailyItemsTable();updateDashboard();renderUsersTable();
+    renderCustomers();populateCustomerSelect();renderMovements();renderAudit();renderCashSession();
+    renderAdminDashboard();
+  }
+}
+
+function applySettingsToUI(){
+  const brand=document.getElementById('app-brand-title');
+  if(brand)brand.innerHTML=`${settings.shopName} <span class="text-blue-400">& Stock Pro</span>`;
+  const appLogo=document.getElementById('app-logo-img');
+  if(appLogo)appLogo.src=settings.logo||'assets/kajy_logo.png';
+  const l=document.getElementById('label-tva-rate');
+  if(l)l.innerText=`TVA (${settings.tvaRate}%) :`;
+  const rn=document.getElementById('rec-shop-name');if(rn)rn.innerText=settings.shopName;
+  const ra=document.getElementById('rec-shop-addr');if(ra)ra.innerText=settings.address;
+  const rp=document.getElementById('rec-shop-phone');if(rp)rp.innerText=`Tél : ${settings.phone}`;
+  const rnif=document.getElementById('rec-shop-nif');const rstat=document.getElementById('rec-shop-stat');
+  if(rnif){rnif.innerText=settings.nif?`NIF : ${settings.nif}`:'';rnif.classList.toggle('hidden',!settings.nif);}
+  if(rstat){rstat.innerText=settings.stat?`STAT : ${settings.stat}`:'';rstat.classList.toggle('hidden',!settings.stat);}
+  const rl=document.getElementById('rec-label-tva');if(rl)rl.innerText=`TVA (${settings.tvaRate}%) :`;
+  if(document.getElementById('set-shop-name')){
+    document.getElementById('set-shop-name').value=settings.shopName;
+    document.getElementById('set-shop-address').value=settings.address;
+    document.getElementById('set-shop-phone').value=settings.phone;
+    document.getElementById('set-tva-rate').value=settings.tvaRate;
+    document.getElementById('set-nif').value=settings.nif||'';
+    document.getElementById('set-stat').value=settings.stat||'';
+    const si=document.getElementById('set-sync-endpoint');if(si)si.value=settings.syncEndpoint||SYNC_DEFAULT_ENDPOINT;
+  }
+}
+
+function saveCompanyLogo(){
+  const input=document.getElementById('setting-logo-file');
+  const file=input?.files?.[0];
+  if(!file){alert('Sélectionnez un logo.');return;}
+  if(file.size>5*1024*1024){alert('Image trop lourde (max 5 Mo).');return;}
+  compressImage(file,512,0.85).then(compressed=>{
+    const estimatedKB=Math.round((compressed.length*0.75)/1024);
+    if(estimatedKB>800){alert(`Image trop volumineuse (~${estimatedKB} Ko).`);return;}
+    settings.logo=compressed;
+    if(saveStorage('pos_settings',settings)){applyLoginLogo();applySettingsToUI();alert(`Logo enregistré (${estimatedKB} Ko).`);}
+  }).catch(err=>alert('Erreur traitement : '+err.message));
+}
+
+function removeCompanyLogo(){
+  settings.logo='assets/kajy_logo.png';
+  saveStorage('pos_settings',settings);
+  applyLoginLogo();applySettingsToUI();
+  const input=document.getElementById('setting-logo-file');if(input)input.value='';
+}
+
+function saveSettings(e){
+  e.preventDefault();
+  settings.shopName=document.getElementById('set-shop-name').value;
+  settings.address=document.getElementById('set-shop-address').value;
+  settings.phone=document.getElementById('set-shop-phone').value.trim();
+  settings.tvaRate=parseFloat(document.getElementById('set-tva-rate').value)||20;
+  settings.nif=document.getElementById('set-nif').value.trim();
+  settings.stat=document.getElementById('set-stat').value.trim();
+  const si=document.getElementById('set-sync-endpoint');
+  settings.syncEndpoint=(si?.value||SYNC_DEFAULT_ENDPOINT).trim();
+  saveStorage('pos_settings',settings);
+  addAudit('PARAMÈTRES','Informations magasin / TVA / NIF / STAT mises à jour');
+  applySettingsToUI();
+  alert('Paramètres enregistrés !');
+}
+
+function openPrivacyModal(){document.getElementById('privacy-modal').classList.remove('hidden');}
+function closePrivacyModal(){document.getElementById('privacy-modal').classList.add('hidden');}
+
+function populateLoginSelect(){
+  const select=document.getElementById('login-user-select');
+  if(!select)return;
+  select.innerHTML='';
+  users.filter(u=>u.status==='Actif').forEach(u=>{
+    const opt=document.createElement('option');
+    opt.value=u.id;opt.textContent=`${u.name} (${u.role})`;
+    select.appendChild(opt);
+  });
+}
+
+function handleLogin(e){
+  e.preventDefault();
+  const userId=document.getElementById('login-user-select').value;
+  const pin=document.getElementById('login-pin').value;
+  const errorDiv=document.getElementById('login-error');
+  const user=users.find(u=>u.id===userId&&u.pin===pin&&u.status==='Actif');
+  if(user){
+    currentUser=user;currentRole=user.role;
+    errorDiv.classList.add('hidden');
+    document.getElementById('auth-screen').classList.add('hidden');
+    document.getElementById('main-app').classList.remove('hidden');
+    updateUserAvatarUI();
+    document.getElementById('role-badge').textContent=user.role;
+    
+    if(user.role==='CASHIER'){
+        // Caissier : montre la barre de navigation, cache les éléments admin
+        document.querySelectorAll('.admin-only').forEach(el=>el.classList.add('hidden'));
+        document.getElementById('main-nav').classList.remove('hidden');
+        document.getElementById('back-office-return-btn').classList.remove('visible');
+        switchTab('pos');
+    } else {
+        // Admin/Responsable : cache la barre de navigation, montre les éléments admin
+        document.querySelectorAll('.admin-only').forEach(el=>el.classList.remove('hidden'));
+        document.getElementById('main-nav').classList.add('hidden');
+        switchTab('admin-dashboard');
+    }
+    
+    addAudit('CONNEXION','Connexion réussie');
+    syncDataFromStorage();
+  }else errorDiv.classList.remove('hidden');
+}
+
+function logout(){
+  addAudit('DÉCONNEXION','Déconnexion');
+  autoBackupNow('déconnexion');
+  currentUser=null;
+  document.getElementById('main-app').classList.add('hidden');
+  document.getElementById('auth-screen').classList.remove('hidden');
+  document.getElementById('login-pin').value='';
+  document.getElementById('back-office-return-btn').classList.remove('visible');
+  document.getElementById('main-nav').classList.add('hidden');
+  populateLoginSelect();
+  updateAutoBackupIndicator();
+}
+
+function updateUserAvatarUI(){
+  if(!currentUser)return;
+  const nameEl=document.getElementById('user-display-name');if(nameEl)nameEl.textContent=currentUser.name;
+  const img=document.getElementById('user-avatar-img');
+  const icon=document.getElementById('user-avatar-icon');
+  if(currentUser.avatar&&currentUser.avatar.trim()!==''){
+    img.src=currentUser.avatar;img.classList.remove('hidden');icon.classList.add('hidden');
+  }else{img.classList.add('hidden');icon.classList.remove('hidden');}
+}
+
+function openAvatarModal(){
+  if(!currentUser)return;
+  tempAvatarData=currentUser.avatar||'';
+  updateAvatarModalPreview();
+  document.getElementById('avatar-success-msg').classList.add('hidden');
+  document.getElementById('url-error-msg').classList.add('hidden');
+  document.getElementById('online-avatar-url').value='';
+  switchAvatarTab('local');
+  document.getElementById('avatar-modal').classList.remove('hidden');
+  if(typeof lucide!=='undefined')lucide.createIcons();
+}
+function closeAvatarModal(){document.getElementById('avatar-modal').classList.add('hidden');}
+function switchAvatarTab(tab){
+  const paneLocal=document.getElementById('avatar-pane-local');
+  const paneUrl=document.getElementById('avatar-pane-url');
+  const btnLocal=document.getElementById('btn-tab-local');
+  const btnUrl=document.getElementById('btn-tab-url');
+  if(tab==='local'){
+    paneLocal.classList.remove('hidden');paneUrl.classList.add('hidden');
+    btnLocal.className="flex-1 py-2 font-bold rounded-lg text-xs bg-white text-blue-600 shadow-sm transition";
+    btnUrl.className="flex-1 py-2 font-bold rounded-lg text-xs text-slate-600 transition";
+  }else{
+    paneLocal.classList.add('hidden');paneUrl.classList.remove('hidden');
+    btnUrl.className="flex-1 py-2 font-bold rounded-lg text-xs bg-white text-blue-600 shadow-sm transition";
+    btnLocal.className="flex-1 py-2 font-bold rounded-lg text-xs text-slate-600 transition";
+  }
+}
+function updateAvatarModalPreview(){
+  const img=document.getElementById('avatar-preview-img');
+  const icon=document.getElementById('avatar-preview-icon');
+  if(tempAvatarData&&tempAvatarData.trim()!==''){
+    img.src=tempAvatarData;img.classList.remove('hidden');icon.classList.add('hidden');
+  }else{img.classList.add('hidden');icon.classList.remove('hidden');}
+}
+function handleLocalImageSelect(event){
+  const file=event.target.files[0];
+  if(!file)return;
+  const validTypes=['image/jpeg','image/jpg','image/png','image/webp'];
+  if(!validTypes.includes(file.type)){alert('Format non supporté.');return;}
+  compressImage(file,256,0.85).then(dataUrl=>{tempAvatarData=dataUrl;updateAvatarModalPreview();}).catch(err=>alert('Erreur traitement : '+err.message));
+}
+function verifyOnlineImageUrl(){
+  const urlInput=document.getElementById('online-avatar-url').value.trim();
+  const errorMsg=document.getElementById('url-error-msg');
+  if(!urlInput)return;
+  const imgTest=new Image();
+  imgTest.onload=()=>{errorMsg.classList.add('hidden');tempAvatarData=urlInput;updateAvatarModalPreview();};
+  imgTest.onerror=()=>{errorMsg.classList.remove('hidden');};
+  imgTest.src=urlInput;
+}
+function removeAvatar(){
+  tempAvatarData='';updateAvatarModalPreview();
+  document.getElementById('online-avatar-url').value='';
+}
+function saveUserAvatar(){
+  if(!currentUser)return;
+  currentUser.avatar=tempAvatarData;
+  const i=users.findIndex(u=>u.id===currentUser.id);
+  if(i!==-1)users[i].avatar=tempAvatarData;
+  saveStorage('pos_users',users);
+  updateUserAvatarUI();
+  document.getElementById('avatar-success-msg').classList.remove('hidden');
+  setTimeout(()=>closeAvatarModal(),1200);
+}
+
+function switchTab(tabId){
+  document.querySelectorAll('.nav-tab').forEach(btn=>{btn.classList.remove('border-blue-600','text-blue-600');btn.classList.add('border-transparent','text-slate-500');});
+  document.querySelectorAll('.tab-content').forEach(sec=>sec.classList.add('hidden'));
+  const activeBtn=document.getElementById(`tab-${tabId}`);
+  if(activeBtn){activeBtn.classList.add('border-blue-600','text-blue-600');activeBtn.classList.remove('border-transparent','text-slate-500');}
+  const sec=document.getElementById(`sec-${tabId}`);if(sec)sec.classList.remove('hidden');
+  
+  // Gestion du Back Office
+  if(tabId==='dashboard')updateDashboard();
+  if(tabId==='admin-dashboard') renderAdminDashboard();
+  
+  if(tabId==='profits')renderProfitsTables();
+  if(tabId==='daily-items')renderDailyItemsTable();
+  if(tabId==='daily-report')renderDailyReport();
+  if(tabId==='sales')renderSalesTable();
+  if(tabId==='users')renderUsersTable();
+  if(tabId==='customers'){renderCustomers();populateCustomerSelect();}
+  if(tabId==='cash')renderCashSession();
+  if(tabId==='movements')renderMovements();
+  if(tabId==='audit')renderAudit();
+
+  // Bouton Retour Back Office : visible pour les admins sur tous les onglets sauf le Back Office lui-même
+  const returnBtn=document.getElementById('back-office-return-btn');
+  if(currentRole==='ADMIN' && tabId!=='admin-dashboard'){
+      returnBtn.classList.add('visible');
+  } else {
+      returnBtn.classList.remove('visible');
+  }
+  
+  if(typeof lucide!=='undefined')lucide.createIcons();
+}
+
+function toggleAccordion(header){
+    const content = header.nextElementSibling;
+    const isOpen = content.classList.contains('open');
+    
+    // Fermer tous les autres accordéons (optionnel - comportement accordéon strict)
+    document.querySelectorAll('.accordion-content').forEach(c => c.classList.remove('open'));
+    document.querySelectorAll('.accordion-header').forEach(h => h.classList.remove('open'));
+    
+    // Ouvrir celui cliqué s'il n'était pas déjà ouvert
+    if(!isOpen){
+        content.classList.add('open');
+        header.classList.add('open');
+    }
+}
+
+function updateCategoryDropdowns(){
+  const cats=[...new Set(products.map(p=>p.cat))];
+  ['pos-cat-filter','stock-cat-filter','new-cat'].forEach(selectId=>{
+    const select=document.getElementById(selectId);if(!select)return;
+    const cur=select.value;
+    if(selectId==='new-cat'){
+      select.innerHTML='';
+      cats.forEach(c=>{select.innerHTML+=`<option value="${c}">${c}</option>`;});
+      select.innerHTML+=`<option value="NEW">+ Nouvelle Catégorie...</option>`;
+    }else{
+      select.innerHTML=`<option value="ALL">Toutes catégories</option>`;
+      cats.forEach(c=>{select.innerHTML+=`<option value="${c}">${c}</option>`;});
+    }
+    select.value=cur||'ALL';
+  });
+}
+
+function getPosView(){return localStorage.getItem('pos_view_mode')||'grid';}
+function setPosView(mode){localStorage.setItem('pos_view_mode',mode);renderPosProducts();}
+function toggleFavorite(productId,event){
+  if(event){event.stopPropagation();event.preventDefault();}
+  const favs=loadStorage('pos_favorites',[]);
+  const idx=favs.indexOf(productId);
+  if(idx>=0)favs.splice(idx,1);else favs.push(productId);
+  saveStorage('pos_favorites',favs);renderPosProducts();
+}
+
+function renderPosProducts(){
+  const grid=document.getElementById('pos-product-grid');if(!grid)return;
+  const search=(document.getElementById('pos-search')?.value||'').toLowerCase().trim();
+  const cat=document.getElementById('pos-cat-filter')?.value||'ALL';
+  const stockFilter=document.getElementById('pos-stock-filter')?.value||'ALL';
+  const view=getPosView();
+  const favs=loadStorage('pos_favorites',[]);
+  const filtered=products.filter(p=>{
+    const name=String(p.name||'').toLowerCase();
+    const sku=String(p.sku||'').toLowerCase();
+    const low=Number(p.stock)<=Number(p.alert||0)&&Number(p.stock)>0;
+    const out=Number(p.stock)<=0;
+    const stockOk=stockFilter==='ALL'||(stockFilter==='AVAILABLE'&&!out)||(stockFilter==='LOW'&&low)||(stockFilter==='OUT'&&out)||(stockFilter==='FAVORITES'&&favs.includes(p.id));
+    return(name.includes(search)||sku.includes(search))&&(cat==='ALL'||p.cat===cat)&&stockOk;
+  });
+  grid.className=view==='list'?'space-y-2 max-h-[520px] overflow-y-auto pr-1 custom-scrollbar':view==='compact'?'grid grid-cols-2 sm:grid-cols-4 gap-2 max-h-[520px] overflow-y-auto pr-1 custom-scrollbar':'grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[520px] overflow-y-auto pr-1 custom-scrollbar';
+  grid.innerHTML='';
+  const c=document.getElementById('pos-result-count');if(c)c.textContent=filtered.length;
+  filtered.forEach(p=>{
+    const stock=Number(p.stock)||0;
+    const alertLevel=Number(p.alert)||0;
+    const low=stock<=alertLevel&&stock>0;
+    const out=stock<=0;
+    const favorite=favs.includes(p.id);
+    const card=document.createElement('div');
+    card.onclick=()=>{if(!out)addToCart(p.id);};
+    const base='bg-white border rounded-xl shadow-sm hover:shadow-md transition group '+(out?'opacity-60 cursor-not-allowed ':'cursor-pointer ')+(low?'border-red-300 bg-red-50/20':'border-slate-200');
+    if(view==='list'){
+      card.className=base+' p-2.5 flex items-center gap-3';
+      card.innerHTML=`<div class="w-11 h-11 rounded-lg bg-slate-100 flex items-center justify-center shrink-0"><i data-lucide="package" class="w-5 h-5 text-slate-400"></i></div><div class="min-w-0 flex-1"><div class="flex items-center gap-2"><span class="text-[9px] font-bold text-slate-400 uppercase">${escapeHtml(p.cat||'Sans catégorie')}</span><span class="text-[10px] font-bold ${out?'text-red-700':low?'text-amber-700':'text-emerald-700'}">Stock: ${stock}</span></div><h4 class="font-semibold text-xs text-slate-800 truncate">${escapeHtml(p.name)}</h4><span class="text-[10px] text-slate-400 font-mono">${escapeHtml(p.sku||p.id)}</span></div><div class="text-right"><div class="font-bold text-sm text-blue-600 font-mono">${formatAriary(p.price)}</div><button onclick="toggleFavorite('${p.id}', event)" class="p-1 ${favorite?'text-amber-500':'text-slate-300'}"><i data-lucide="star" class="w-4 h-4 ${favorite?'fill-current':''}"></i></button></div><button class="bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white p-2 rounded-lg" ${out?'disabled':''}><i data-lucide="plus" class="w-4 h-4"></i></button>`;
+    }else{
+      card.className=base+(view==='compact'?' p-2':' p-3')+' flex flex-col justify-between';
+      card.innerHTML=`<div><div class="flex justify-between items-start mb-1"><span class="text-[9px] font-bold text-slate-400 uppercase truncate pr-1">${escapeHtml(p.cat||'Sans catégorie')}</span><button onclick="toggleFavorite('${p.id}', event)" class="${favorite?'text-amber-500':'text-slate-300'}"><i data-lucide="star" class="w-4 h-4 ${favorite?'fill-current':''}"></i></button></div><div class="flex justify-between items-center mb-1"><span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md ${out?'bg-red-100 text-red-700':low?'bg-amber-100 text-amber-700':'bg-slate-100 text-slate-600'}">${out?'Rupture':'Stock: '+stock}</span></div><h4 class="font-semibold ${view==='compact'?'text-[11px]':'text-xs'} text-slate-800 line-clamp-2">${escapeHtml(p.name)}</h4></div><div class="mt-2.5 flex justify-between items-center"><span class="font-bold ${view==='compact'?'text-xs':'text-sm'} text-blue-600 font-mono">${formatAriary(p.price)}</span><button class="bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white p-1 rounded-lg transition" ${out?'disabled':''}><i data-lucide="plus" class="w-3.5 h-3.5"></i></button></div>`;
+    }
+    grid.appendChild(card);
+  });
+  ['pos-view-grid','pos-view-list','pos-view-compact'].forEach(id=>{const b=document.getElementById(id);if(b)b.className='px-2 py-1.5 text-slate-500';});
+  const active=document.getElementById('pos-view-'+view);if(active)active.className='px-2 py-1.5 text-blue-600 bg-blue-50';
+  if(typeof lucide!=='undefined')lucide.createIcons();
+}
+function filterPosProducts(){renderPosProducts();}
+
+function handleBarcodeScan(e){
+  if(e.key==='Enter'){
+    e.preventDefault();
+    const inp=document.getElementById('pos-barcode-input');
+    const barcode=inp.value.trim();
+    if(!barcode)return;
+    const prod=products.find(p=>p.sku===barcode||p.id===barcode);
+    if(prod){addToCart(prod.id);inp.value='';}
+    else alert(`Aucun article trouvé : "${barcode}"`);
+  }
+}
+
+function savePendingCart(){
+  if(!cart.length){alert('Le panier est vide.');return;}
+  const pending=loadStorage('pos_pending_carts',[]);
+  pending.push({id:'PENDING-'+Date.now(),date:new Date().toLocaleString('fr-FR'),items:cart});
+  saveStorage('pos_pending_carts',pending);
+  cart=[];renderCart();
+  alert('Panier mis en attente.');
+}
+function resumePendingCart(){
+  const pending=loadStorage('pos_pending_carts',[]);
+  if(!pending.length){alert('Aucun panier en attente.');return;}
+  const choice=pending.map((x,i)=>`${i+1}. ${x.date} - ${x.items.length} article(s)`).join('\n');
+  const raw=prompt('Choisissez le panier :\n\n'+choice+'\n\nNuméro :');
+  const idx=Number(raw)-1;
+  if(!Number.isInteger(idx)||!pending[idx])return;
+  if(cart.length&&!confirm('Le panier actuel sera remplacé. Continuer ?'))return;
+  cart=pending[idx].items||[];
+  pending.splice(idx,1);
+  saveStorage('pos_pending_carts',pending);
+  renderCart();
+}
+
+function addToCart(productId){
+  const prod=products.find(p=>p.id===productId);
+  if(!prod||prod.stock<=0){alert('Article en rupture de stock !');return;}
+  const existing=cart.find(item=>item.id===productId);
+  if(existing){
+    if(existing.qty<prod.stock)existing.qty++;
+    else alert('Limite de stock atteinte !');
+  }else cart.push({id:prod.id,name:prod.name,price:prod.price,cost:prod.cost,qty:1});
+  renderCart();
+}
+function updateCartQty(id,delta){
+  const item=cart.find(i=>i.id===id);if(!item)return;
+  const prod=products.find(p=>p.id===id);
+  if(delta>0&&item.qty>=prod.stock){alert('Stock insuffisant !');return;}
+  item.qty+=delta;
+  if(item.qty<=0)cart=cart.filter(i=>i.id!==id);
+  renderCart();
+}
+function clearCart(){cart=[];renderCart();}
+
+function calculateCartTotals(){
+  let subtotal=0;
+  cart.forEach(item=>subtotal+=item.price*item.qty);
+  const discountType=document.getElementById('discount-type').value;
+  const discountInputVal=parseFloat(document.getElementById('discount-value').value)||0;
+  let discountAmount=0;
+  if(discountType==='percent')discountAmount=(subtotal*Math.min(100,Math.max(0,discountInputVal)))/100;
+  else if(discountType==='amount')discountAmount=Math.min(subtotal,Math.max(0,discountInputVal));
+  const totalTtc=Math.max(0,subtotal-discountAmount);
+  const totalHt=totalTtc/(1+(settings.tvaRate/100));
+  const totalTva=totalTtc-totalHt;
+  return{subtotal,discountAmount,totalHt,totalTva,totalTtc};
+}
+
+function renderCart(){
+  const tbody=document.getElementById('cart-table-body');if(!tbody)return;
+  tbody.innerHTML='';
+  cart.forEach(item=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td class="py-2 pr-1 font-medium text-slate-800">${escapeHtml(item.name)}</td><td class="py-2 text-center"><div class="flex items-center justify-center space-x-1"><button onclick="updateCartQty('${item.id}', -1)" class="w-4 h-4 bg-slate-200 rounded font-bold">-</button><span class="font-bold text-xs">${item.qty}</span><button onclick="updateCartQty('${item.id}', 1)" class="w-4 h-4 bg-slate-200 rounded font-bold">+</button></div></td><td class="py-2 text-right font-mono text-slate-500">${formatAriary(item.price)}</td><td class="py-2 text-right font-bold font-mono">${formatAriary(item.price*item.qty)}</td><td class="py-2 text-right"><button onclick="updateCartQty('${item.id}', -999)" class="text-red-600"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button></td>`;
+    tbody.appendChild(tr);
+  });
+  const totals=calculateCartTotals();
+  document.getElementById('cart-subtotal').innerText=formatAriary(totals.subtotal);
+  document.getElementById('cart-discount-display').innerText=`- ${formatAriary(totals.discountAmount)}`;
+  document.getElementById('cart-ht').innerText=formatAriary(totals.totalHt);
+  document.getElementById('cart-tva').innerText=formatAriary(totals.totalTva);
+  document.getElementById('cart-ttc').innerText=formatAriary(totals.totalTtc);
+  calcChange();
+  if(typeof lucide!=='undefined')lucide.createIcons();
+}
+
+function calcChange(){
+  const totals=calculateCartTotals();
+  const paid=parseFloat(document.getElementById('amount-paid').value)||0;
+  const change=Math.max(0,paid-totals.totalTtc);
+  const el=document.getElementById('change-due');
+  if(el)el.innerText=formatAriary(change);
+}
+
+function processCheckout(){
+  if(cart.length===0){alert('Le panier est vide !');return;}
+  const totals=calculateCartTotals();
+  const paid=parseFloat(document.getElementById('amount-paid').value)||0;
+  const payMode=document.getElementById('payment-mode').value;
+  const customerId=document.getElementById('pos-customer')?.value||'CASH';
+  const customer=customers.find(c=>c.id===customerId);
+  if(cashSession&&!cashSession.open){alert('La caisse est clôturée. Ouvrez une session.');return;}
+  if(payMode==='Espèces'&&paid<totals.totalTtc){alert('Montant reçu insuffisant !');return;}
+  cart.forEach(cartItem=>{
+    const prod=products.find(p=>p.id===cartItem.id);
+    if(prod)prod.stock-=cartItem.qty;
+  });
+  saveStorage('pos_products',products);
+  const now=new Date();
+  const dateStr=localDateTimeISO(now).slice(0,16);
+  const trxId=`TRX-${1000+sales.length+1}`;
+  let totalCostHt=0;
+  cart.forEach(item=>totalCostHt+=(item.cost*item.qty));
+  const profit=totals.totalHt-totalCostHt;
+  currentReceipt={id:trxId,date:dateStr,cashier:currentUser?currentUser.name:'Caissier',payment:payMode,subtotal:totals.subtotal,discountAmount:totals.discountAmount,ht:totals.totalHt,tva:totals.totalTva,ttc:totals.totalTtc,profit:profit,paid:paid,change:Math.max(0,paid-totals.totalTtc),customerId,customerName:customer?customer.name:'Client comptoir',items:JSON.parse(JSON.stringify(cart))};
+  sales.unshift({...currentReceipt,status:'Payé'});
+  saveStorage('pos_sales',sales);
+  cart.forEach(item=>recordStockMovement(item.id,-item.qty,'VENTE',trxId));
+  addAudit('VENTE',`${trxId} - ${formatAriary(totals.totalTtc)} - ${currentReceipt.customerName}`);
+  displayReceiptModal(currentReceipt,false);
+  clearCart();
+  document.getElementById('amount-paid').value='';
+  syncDataFromStorage();
+  autoBackupNow('après vente');
+}
+
+function displayReceiptModal(trx,isDuplicate=false){
+  document.getElementById('rec-id').innerText=trx.id;
+  document.getElementById('rec-date').innerText=trx.date;
+  document.getElementById('rec-cashier').innerText=trx.cashier;
+  document.getElementById('rec-paymode').innerText=trx.payment;
+  const rc=document.getElementById('rec-customer');if(rc)rc.innerText=trx.customerName||'Client comptoir';
+  const recBody=document.getElementById('rec-items-body');recBody.innerHTML='';
+  trx.items.forEach(item=>{recBody.innerHTML+=`<tr><td class="py-1">${escapeHtml(item.name)}</td><td class="py-1 text-center">${item.qty}</td><td class="py-1 text-right font-mono">${formatAriary(item.price*item.qty)}</td></tr>`;});
+  document.getElementById('rec-subtotal').innerText=formatAriary(trx.subtotal||trx.ht+(trx.discountAmount||0));
+  document.getElementById('rec-discount').innerText=`- ${formatAriary(trx.discountAmount||0)}`;
+  document.getElementById('rec-ht').innerText=formatAriary(trx.ht);
+  document.getElementById('rec-tva').innerText=formatAriary(trx.tva);
+  document.getElementById('rec-ttc').innerText=formatAriary(trx.ttc);
+  document.getElementById('rec-paid').innerText=formatAriary(trx.paid||trx.ttc);
+  document.getElementById('rec-change').innerText=formatAriary(trx.change||0);
+  document.getElementById('rec-footer-notice').textContent=isDuplicate?'*** DUPLICATA ***':'Merci pour votre visite !';
+  document.getElementById('receipt-modal').classList.remove('hidden');
+}
+function closeReceiptModal(){document.getElementById('receipt-modal').classList.add('hidden');}
+
+function renderSalesTable(){
+  const tbody=document.getElementById('sales-table-body');if(!tbody)return;
+  tbody.innerHTML='';
+  const search=(document.getElementById('sales-search-input')?.value||'').toLowerCase();
+  const filtered=sales.filter(s=>String(s.id).toLowerCase().includes(search)||String(s.cashier).toLowerCase().includes(search));
+  if(filtered.length===0){tbody.innerHTML=`<tr><td colspan="8" class="p-4 text-center text-slate-400">Aucune transaction.</td></tr>`;return;}
+  filtered.forEach(s=>{
+    const isRefunded=['Remboursé','Remb','REMBOURSÉ','REMBOURSE'].includes(String(s.status||'').trim());
+    if(isRefunded){s.status='Remboursé';}else if(!s.status){s.status='Payé';}
+    tbody.innerHTML+=`<tr class="${isRefunded?'bg-red-50/50 text-slate-400 line-through':''}"><td class="p-3 font-mono font-bold text-blue-600">${escapeHtml(s.id)}</td><td class="p-3 text-slate-500">${escapeHtml(s.date)}</td><td class="p-3 font-medium">${escapeHtml(s.cashier)}</td><td class="p-3"><span class="bg-slate-100 px-2 py-0.5 rounded text-[10px]">${escapeHtml(s.payment)}</span></td><td class="p-3 text-right font-mono text-red-600">${s.discountAmount?formatAriary(s.discountAmount):'-'}</td><td class="p-3 text-right font-mono font-bold text-slate-900">${formatAriary(s.ttc)}</td><td class="p-3 text-center"><span class="px-2 py-0.5 rounded font-bold text-[10px] ${isRefunded?'bg-red-100 text-red-700':'bg-emerald-100 text-emerald-800'}">${s.status}</span></td><td class="p-3 text-center"><div class="flex items-center justify-center gap-2 relative z-20"><button type="button" data-action="duplicate" data-id="${s.id}" class="sales-action bg-blue-50 hover:bg-blue-100 text-blue-600 font-semibold px-2.5 py-1 rounded-lg text-[11px]">Duplicata</button>${!isRefunded?`<button type="button" data-action="refund" data-id="${s.id}" class="sales-action bg-red-50 hover:bg-red-100 text-red-600 font-semibold px-2.5 py-1 rounded-lg text-[11px]">Rembourser</button>`:`<span class="bg-red-100 text-red-700 font-semibold px-2.5 py-1 rounded-lg text-[11px]">✓ Remboursé</span>`}</div></td></tr>`;
+  });
+}
+
+document.addEventListener('click',function(event){
+  const btn=event.target.closest('.sales-action');
+  if(!btn)return;
+  event.preventDefault();event.stopPropagation();
+  const id=btn.getAttribute('data-id');
+  const action=btn.getAttribute('data-action');
+  if(!id)return;
+  if(action==='duplicate')printDuplicate(id);
+  if(action==='refund')processRefund(id);
+});
+
+function printDuplicate(trxId){
+  const trx=sales.find(s=>s.id===trxId);
+  if(!trx){alert('Ticket introuvable.');return;}
+  displayReceiptModal(trx,true);
+}
+
+function processRefund(trxId){
+  const trx=sales.find(s=>s.id===trxId);
+  if(!trx){alert('Transaction introuvable.');return;}
+  const norm=String(trx.status||'').trim().toLowerCase();
+  if(['remboursé','remb','rembourse'].includes(norm)){trx.status='Remboursé';saveStorage('pos_sales',sales);renderSalesTable();return;}
+  if(!Array.isArray(trx.items)||!trx.items.length){alert('Aucun article associé.');return;}
+  const amount=Number(trx.ttc)||0;
+  if(!confirm(`Confirmez le remboursement du ticket ${trx.id} (${formatAriary(amount)}) ?`))return;
+  trx.status='Remboursé';
+  trx.refundedAt=new Date().toISOString();
+  trx.refundedBy=currentUser?.name||'Caissier';
+  trx.refundAmount=amount;
+  trx.refundType='TOTAL';
+  const productMap=new Map(products.map(p=>[p.id,p]));
+  trx.items.forEach(item=>{const prod=productMap.get(item.id);if(prod)prod.stock=(Number(prod.stock)||0)+(Number(item.qty)||0);});
+  saveStorage('pos_sales',sales);
+  saveStorage('pos_products',products);
+  trx.items.forEach(item=>recordStockMovement(item.id,Number(item.qty)||0,'RETOUR',trxId));
+  addAudit('REMBOURSEMENT',`${trxId} - ${formatAriary(amount)}`);
+  renderSalesTable();renderDailyReport();updateDashboard();renderStockTable();renderMovements();
+  alert(`Remboursement effectué. Ticket ${trx.id} marqué « Remboursé ».`);
+  autoBackupNow('après remboursement');
+}
+
+function renderDailyReport(){
+  const rd=document.getElementById('daily-report-date');if(!rd)return;
+  const selDate=rd.value||localDateISO();
+  let cashTotal=0,cashCount=0,momoTotal=0,momoCount=0,cardTotal=0,cardCount=0,grandTotal=0,totalCount=0;
+  const daySales=sales.filter(s=>s.date.startsWith(selDate)&&s.status==='Payé');
+  daySales.forEach(s=>{
+    grandTotal+=s.ttc;totalCount++;
+    if(s.payment==='Espèces'){cashTotal+=s.ttc;cashCount++;}
+    else if(s.payment==='Mobile Money'){momoTotal+=s.ttc;momoCount++;}
+    else if(s.payment==='Carte Bancaire'){cardTotal+=s.ttc;cardCount++;}
+  });
+  document.getElementById('rep-cash-total').textContent=formatAriary(cashTotal);
+  document.getElementById('rep-cash-count').textContent=`${cashCount} transactions`;
+  document.getElementById('rep-momo-total').textContent=formatAriary(momoTotal);
+  document.getElementById('rep-momo-count').textContent=`${momoCount} transactions`;
+  document.getElementById('rep-card-total').textContent=formatAriary(cardTotal);
+  document.getElementById('rep-card-count').textContent=`${cardCount} transactions`;
+  document.getElementById('rep-grand-total').textContent=formatAriary(grandTotal);
+  document.getElementById('rep-total-count').textContent=`${totalCount} tickets valides`;
+  const refundBody=document.getElementById('refunds-table-body');
+  const dayRefunds=sales.filter(s=>{
+    const st=String(s.status||'').trim().toLowerCase();
+    const isRef=['remboursé','remb','rembourse'].includes(st);
+    if(!isRef)return false;
+    const rd2=s.refundedAt?String(s.refundedAt).slice(0,10):String(s.date||'').slice(0,10);
+    return rd2===selDate;
+  });
+  const refundTotal=dayRefunds.reduce((a,r)=>a+(Number(r.refundAmount??r.ttc)||0),0);
+  const rc=document.getElementById('daily-refund-count');if(rc)rc.textContent=dayRefunds.length;
+  const rt=document.getElementById('daily-refund-total');if(rt)rt.textContent=formatAriary(refundTotal);
+  if(refundBody){
+    refundBody.innerHTML='';
+    if(dayRefunds.length===0)refundBody.innerHTML=`<tr><td colspan="5" class="p-3 text-center text-slate-400">Aucun remboursement.</td></tr>`;
+    else dayRefunds.forEach(r=>{
+      const dt=r.refundedAt?new Date(r.refundedAt).toLocaleString('fr-FR'):r.date;
+      const cashier=r.refundedBy||r.cashier||'Caissier';
+      const amt=Number(r.refundAmount??r.ttc)||0;
+      refundBody.innerHTML+=`<tr><td class="p-2.5 font-mono font-bold text-red-600">${escapeHtml(r.id)}</td><td class="p-2.5 text-slate-500">${escapeHtml(dt)}</td><td class="p-2.5">${escapeHtml(cashier)}</td><td class="p-2.5">${escapeHtml(r.payment)}</td><td class="p-2.5 text-right font-mono font-bold text-red-600">- ${formatAriary(amt)}</td></tr>`;
+    });
+  }
+  calcCashDiscrepancy(cashTotal);
+}
+
+function calcCashDiscrepancy(expectedCash=null){
+  const opening=parseFloat(document.getElementById('cash-opening').value)||0;
+  const counted=parseFloat(document.getElementById('cash-counted').value)||0;
+  if(expectedCash===null){
+    const rd=document.getElementById('daily-report-date');
+    const selDate=rd?rd.value:localDateISO();
+    expectedCash=0;
+    sales.filter(s=>s.date.startsWith(selDate)&&s.status==='Payé'&&s.payment==='Espèces').forEach(s=>{expectedCash+=s.ttc;});
+  }
+  const theoretical=opening+expectedCash;
+  const actual=document.getElementById('cash-counted').value===''?theoretical:counted;
+  const diff=actual-theoretical;
+  const v=document.getElementById('cash-discrepancy-val');
+  const st=document.getElementById('cash-discrepancy-status');
+  const box=document.getElementById('cash-discrepancy-box');
+  v.textContent=formatAriary(Math.abs(diff))+(diff<0?' (Manquant)':diff>0?' (Excédent)':'');
+  if(diff===0){box.className='w-full border border-emerald-300 p-2.5 rounded-lg font-black font-mono bg-emerald-50 text-emerald-800 flex items-center justify-between';st.className='text-[10px] px-2 py-0.5 rounded font-bold bg-emerald-200 text-emerald-900';st.textContent='Parfait';}
+  else if(diff<0){box.className='w-full border border-red-300 p-2.5 rounded-lg font-black font-mono bg-red-50 text-red-800 flex items-center justify-between';st.className='text-[10px] px-2 py-0.5 rounded font-bold bg-red-200 text-red-900';st.textContent='Déficit';}
+  else{box.className='w-full border border-amber-300 p-2.5 rounded-lg font-black font-mono bg-amber-50 text-amber-800 flex items-center justify-between';st.className='text-[10px] px-2 py-0.5 rounded font-bold bg-amber-200 text-amber-900';st.textContent='Excédent';}
+}
+
+function renderStockTable(){
+  const tbody=document.getElementById('stock-table-body');if(!tbody)return;
+  tbody.innerHTML='';
+  const search=(document.getElementById('stock-search')?.value||'').toLowerCase();
+  const cat=document.getElementById('stock-cat-filter')?.value||'ALL';
+  products.filter(p=>(String(p.name).toLowerCase().includes(search)||String(p.sku).includes(search))&&(cat==='ALL'||p.cat===cat)).forEach(p=>{
+    const isLow=p.stock<=p.alert;
+    tbody.innerHTML+=`<tr><td class="p-3 admin-only text-center"><input type="checkbox" class="stock-checkbox" value="${p.id}"></td><td class="p-3 font-mono font-bold text-blue-600">${escapeHtml(p.id)}</td><td class="p-3 text-slate-500 font-mono">${escapeHtml(p.sku)}</td><td class="p-3 font-semibold text-slate-800">${escapeHtml(p.name)}</td><td class="p-3"><span class="bg-slate-100 px-2 py-0.5 rounded text-[10px]">${escapeHtml(p.cat)}</span></td><td class="p-3 text-right font-mono">${formatAriary(p.cost)}</td><td class="p-3 text-right font-mono font-bold">${formatAriary(p.price)}</td><td class="p-3 text-right font-bold font-mono ${isLow?'text-red-600':''}">${p.stock}</td><td class="p-3 text-right text-slate-400 font-mono">${p.alert}</td><td class="p-3 text-center"><span class="px-2 py-0.5 rounded font-bold text-[10px] ${isLow?'bg-red-100 text-red-700':'bg-emerald-100 text-emerald-700'}">${isLow?'RÉAPPRO':'EN STOCK'}</span></td><td class="p-3 text-center admin-only space-x-1"><button onclick="adjustStock('${p.id}')" class="bg-blue-50 hover:bg-blue-100 text-blue-600 px-2 py-1 rounded text-[10px] font-bold">Stock</button><button onclick="deleteProduct('${p.id}')" class="bg-red-50 hover:bg-red-100 text-red-600 px-2 py-1 rounded text-[10px] font-bold">Suppr</button></td></tr>`;
+  });
+  if(currentRole==='CASHIER')document.querySelectorAll('.admin-only').forEach(el=>el.classList.add('hidden'));
+}
+function toggleSelectAllStock(master){document.querySelectorAll('.stock-checkbox').forEach(cb=>cb.checked=master.checked);}
+
+function openAddProductModal(){
+  document.getElementById('add-product-modal').classList.remove('hidden');
+  document.getElementById('new-sku').value='';
+  document.getElementById('new-name').value='';
+  document.getElementById('new-stock').value='';
+  document.getElementById('new-cost').value='';
+  document.getElementById('new-price').value='';
+  document.getElementById('new-category-wrapper').classList.add('hidden');
+}
+function closeAddProductModal(){document.getElementById('add-product-modal').classList.add('hidden');}
+function checkNewCategory(val){
+  const w=document.getElementById('new-category-wrapper');
+  if(val==='NEW')w.classList.remove('hidden');else w.classList.add('hidden');
+}
+function saveNewProduct(e){
+  e.preventDefault();
+  const sku=document.getElementById('new-sku').value.trim();
+  const name=document.getElementById('new-name').value.trim();
+  let cat=document.getElementById('new-cat').value;
+  if(cat==='NEW'){
+    cat=document.getElementById('custom-new-cat').value.trim();
+    if(!cat){alert('Saisissez la nouvelle catégorie.');return;}
+  }
+  const stock=parseInt(document.getElementById('new-stock').value)||0;
+  const cost=parseFloat(document.getElementById('new-cost').value)||0;
+  const price=parseFloat(document.getElementById('new-price').value)||0;
+  const newId=`ART-${String(products.length+1).padStart(3,'0')}`;
+  products.push({id:newId,sku,name,cat,cost,price,stock,alert:10});
+  saveStorage('pos_products',products);
+  if(stock)recordStockMovement(newId,stock,'ENTRÉE','Création article');
+  addAudit('PRODUIT',`Création: ${name}`);
+  closeAddProductModal();
+  syncDataFromStorage();
+  alert('Article ajouté !');
+}
+function adjustStock(productId){
+  const p=products.find(item=>item.id===productId);if(!p)return;
+  const qtyStr=prompt(`Stock pour "${p.name}" (actuel : ${p.stock}). Entrez +N ou -N :`,'+5');
+  if(qtyStr!==null){
+    const delta=parseInt(qtyStr);
+    if(!isNaN(delta)){
+      p.stock=Math.max(0,p.stock+delta);
+      saveStorage('pos_products',products);
+      recordStockMovement(productId,delta,'AJUSTEMENT','Correction manuelle');
+      addAudit('STOCK',`${p.name}: ${delta>0?'+':''}${delta}`);
+      syncDataFromStorage();
+    }else alert('Valeur invalide.');
+  }
+}
+function deleteProduct(productId){
+  if(confirm('Confirmez-vous la suppression ?')){
+    const deleted=products.find(p=>p.id===productId);
+    products=products.filter(p=>p.id!==productId);
+    saveStorage('pos_products',products);
+    addAudit('PRODUIT',`Suppression: ${deleted?.name||productId}`);
+    syncDataFromStorage();
+  }
+}
+function deleteSelectedProducts(){
+  const checked=Array.from(document.querySelectorAll('.stock-checkbox:checked')).map(cb=>cb.value);
+  if(checked.length===0){alert('Aucun article sélectionné.');return;}
+  if(confirm(`Supprimer ${checked.length} article(s) ?`)){
+    products=products.filter(p=>!checked.includes(p.id));
+    saveStorage('pos_products',products);
+    syncDataFromStorage();
+  }
+}
+
+function renderProfitsTables(){
+  const dailyBody=document.getElementById('daily-profits-body');
+  const monthlyBody=document.getElementById('monthly-profits-body');
+  if(!dailyBody||!monthlyBody)return;
+  const dailyMap={},monthlyMap={};
+  sales.filter(s=>s.status==='Payé').forEach(s=>{
+    const day=s.date.slice(0,10);const month=s.date.slice(0,7);
+    if(!dailyMap[day])dailyMap[day]={count:0,ht:0,tva:0,ttc:0,profit:0};
+    dailyMap[day].count++;dailyMap[day].ht+=s.ht;dailyMap[day].tva+=s.tva;dailyMap[day].ttc+=s.ttc;dailyMap[day].profit+=s.profit;
+    if(!monthlyMap[month])monthlyMap[month]={count:0,ht:0,tva:0,ttc:0,profit:0};
+    monthlyMap[month].count++;monthlyMap[month].ht+=s.ht;monthlyMap[month].tva+=s.tva;monthlyMap[month].ttc+=s.ttc;monthlyMap[month].profit+=s.profit;
+  });
+  dailyBody.innerHTML='';
+  Object.keys(dailyMap).sort().reverse().forEach(day=>{
+    const d=dailyMap[day];
+    dailyBody.innerHTML+=`<tr><td class="p-3 font-semibold">${day}</td><td class="p-3 text-center">${d.count}</td><td class="p-3 text-right font-mono">${formatAriary(d.ht)}</td><td class="p-3 text-right font-mono text-slate-500">${formatAriary(d.tva)}</td><td class="p-3 text-right font-mono font-bold">${formatAriary(d.ttc)}</td><td class="p-3 text-right font-mono font-black text-emerald-600">${formatAriary(d.profit)}</td></tr>`;
+  });
+  monthlyBody.innerHTML='';
+  Object.keys(monthlyMap).sort().reverse().forEach(month=>{
+    const m=monthlyMap[month];
+    monthlyBody.innerHTML+=`<tr><td class="p-3 font-semibold">${month}</td><td class="p-3 text-center">${m.count}</td><td class="p-3 text-right font-mono">${formatAriary(m.ht)}</td><td class="p-3 text-right font-mono text-slate-500">${formatAriary(m.tva)}</td><td class="p-3 text-right font-mono font-bold">${formatAriary(m.ttc)}</td><td class="p-3 text-right font-mono font-black text-emerald-600">${formatAriary(m.profit)}</td></tr>`;
+  });
+}
+
+function renderDailyItemsTable(){
+  const di=document.getElementById('filter-daily-date');
+  const tbody=document.getElementById('daily-items-table-body');
+  if(!di||!tbody)return;
+  const selDate=di.value;
+  tbody.innerHTML='';
+  const itemsMap={};
+  sales.filter(s=>s.date.startsWith(selDate)&&s.status==='Payé').forEach(s=>{
+    s.items.forEach(i=>{
+      if(!itemsMap[i.id])itemsMap[i.id]={name:i.name,qty:0,total:0};
+      itemsMap[i.id].qty+=i.qty;
+      itemsMap[i.id].total+=(i.price*i.qty);
+    });
+  });
+  const keys=Object.keys(itemsMap);
+  if(keys.length===0){tbody.innerHTML=`<tr><td colspan="5" class="p-4 text-center text-slate-400">Aucun article vendu.</td></tr>`;return;}
+  keys.forEach(id=>{
+    const item=itemsMap[id];
+    tbody.innerHTML+=`<tr><td class="p-3 text-slate-500">${selDate}</td><td class="p-3 font-mono font-bold text-blue-600">${escapeHtml(id)}</td><td class="p-3 font-semibold text-slate-800">${escapeHtml(item.name)}</td><td class="p-3 text-center font-bold">${item.qty}</td><td class="p-3 text-right font-mono font-bold">${formatAriary(item.total)}</td></tr>`;
+  });
+}
+
+function updateDashboard(){
+  let totalCa=0,totalCount=0,totalProfit=0;
+  sales.filter(s=>s.status==='Payé').forEach(s=>{totalCa+=s.ttc;totalCount++;totalProfit+=s.profit;});
+  document.getElementById('kpi-ca').textContent=formatAriary(totalCa);
+  document.getElementById('kpi-count').textContent=totalCount;
+  document.getElementById('kpi-profit').textContent=formatAriary(totalProfit);
+  const payModes={'Espèces':0,'Mobile Money':0,'Carte Bancaire':0};
+  sales.filter(s=>s.status==='Payé').forEach(s=>{if(payModes[s.payment]!==undefined)payModes[s.payment]+=s.ttc;});
+  const ctxPay=document.getElementById('chart-payments').getContext('2d');
+  if(chartPaymentInstance){chartPaymentInstance.data.datasets[0].data=Object.values(payModes);chartPaymentInstance.update('none');}
+  else chartPaymentInstance=new Chart(ctxPay,{type:'doughnut',data:{labels:Object.keys(payModes),datasets:[{data:Object.values(payModes),backgroundColor:['#3b82f6','#10b981','#6366f1']}]},options:{responsive:true,maintainAspectRatio:false,animation:false}});
+  const lowStock=products.filter(p=>p.stock<=p.alert).slice(0,5);
+  const ctxStock=document.getElementById('chart-stock').getContext('2d');
+  if(chartStockInstance){chartStockInstance.data.labels=lowStock.map(p=>p.name);chartStockInstance.data.datasets[0].data=lowStock.map(p=>p.stock);chartStockInstance.update('none');}
+  else chartStockInstance=new Chart(ctxStock,{type:'bar',data:{labels:lowStock.map(p=>p.name),datasets:[{label:'Stock',data:lowStock.map(p=>p.stock),backgroundColor:'#ef4444'}]},options:{responsive:true,maintainAspectRatio:false,animation:false}});
+}
+
+/* ==== BACK OFFICE DASHBOARD ==== */
+function renderAdminDashboard(){
+    if(!currentUser) return;
+
+    // 1. En-tête
+    const nameEl = document.getElementById('admin-welcome-name');
+    if(nameEl) nameEl.textContent = currentUser.name;
+
+    const dateEl = document.getElementById('admin-current-date');
+    if(dateEl) {
+        const now = new Date();
+        dateEl.textContent = now.toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    }
+
+    // 2. KPIs
+    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+    let monthlySalesTotal = 0;
+    let monthlySalesCount = 0;
+    
+    sales.filter(s => s.status === 'Payé' && s.date.startsWith(currentMonth)).forEach(s => {
+        monthlySalesTotal += s.ttc;
+        monthlySalesCount++;
+    });
+
+    document.getElementById('admin-kpi-sales').textContent = formatAriary(monthlySalesTotal);
+    document.getElementById('admin-kpi-sales-count').textContent = `${monthlySalesCount} commandes`;
+
+    const totalOrders = sales.filter(s => s.status === 'Payé').length;
+    document.getElementById('admin-kpi-orders').textContent = totalOrders;
+
+    document.getElementById('admin-kpi-products').textContent = products.length;
+
+    const lowStockCount = products.filter(p => p.stock <= p.alert).length;
+    document.getElementById('admin-kpi-alerts').textContent = lowStockCount;
+
+    // 3. Activité récente
+    const activityBody = document.getElementById('admin-recent-activity-body');
+    if(activityBody) {
+        activityBody.innerHTML = '';
+        const recentSales = sales.slice(0, 5);
+
+        if(recentSales.length === 0) {
+            activityBody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-400">Aucune activité récente.</td></tr>`;
+        } else {
+            recentSales.forEach(s => {
+                const isRefunded = s.status === 'Remboursé';
+                activityBody.innerHTML += `
+                    <tr>
+                        <td class="py-2 text-slate-500">${escapeHtml(s.date)}</td>
+                        <td class="py-2 font-medium">${escapeHtml(s.cashier)}</td>
+                        <td class="py-2 text-right font-mono font-bold ${isRefunded ? 'text-red-500 line-through' : 'text-slate-800'}">${formatAriary(s.ttc)}</td>
+                        <td class="py-2 text-center">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${isRefunded ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}">
+                                ${s.status}
+                            </span>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+    }
+    
+    if(typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function openAddUserModal(){
+  document.getElementById('user-modal').classList.remove('hidden');
+  document.getElementById('user-modal-title').innerText='Ajouter un Utilisateur';
+  document.getElementById('edit-user-id').value='';
+  document.getElementById('user-fullname').value='';
+  document.getElementById('user-role-select').value='CASHIER';
+  document.getElementById('user-pin').value='';
+  document.getElementById('user-status-select').value='Actif';
+  document.getElementById('user-avatar-url').value='';
+}
+function closeUserModal(){document.getElementById('user-modal').classList.add('hidden');}
+function saveUserForm(e){
+  e.preventDefault();
+  const editId=document.getElementById('edit-user-id').value;
+  const name=document.getElementById('user-fullname').value.trim();
+  const role=document.getElementById('user-role-select').value;
+  const pin=document.getElementById('user-pin').value.trim();
+  const status=document.getElementById('user-status-select').value;
+  const avatar=document.getElementById('user-avatar-url').value.trim();
+  if(editId){
+    const u=users.find(user=>user.id===editId);
+    if(u){u.name=name;u.role=role;u.pin=pin;u.status=status;if(avatar)u.avatar=avatar;}
+  }else{
+    const newId=`USR-${String(users.length+1).padStart(3,'0')}`;
+    users.push({id:newId,name,role,pin,status,avatar});
+  }
+  saveStorage('pos_users',users);
+  closeUserModal();renderUsersTable();populateLoginSelect();
+  alert('Utilisateur enregistré !');
+}
+function deleteUser(userId){
+  if(currentUser&&currentUser.id===userId){alert('Impossible de supprimer votre compte.');return;}
+  if(confirm('Supprimer cet utilisateur ?')){
+    users=users.filter(u=>u.id!==userId);
+    saveStorage('pos_users',users);
+    renderUsersTable();populateLoginSelect();
+  }
+}
+function renderUsersTable(){
+  const tbody=document.getElementById('users-table-body');if(!tbody)return;
+  tbody.innerHTML='';
+  users.forEach(u=>{
+    tbody.innerHTML+=`<tr><td class="p-3 font-mono font-bold text-blue-600">${escapeHtml(u.id)}</td><td class="p-3 font-semibold text-slate-800">${escapeHtml(u.name)}</td><td class="p-3"><span class="bg-slate-100 px-2 py-0.5 rounded text-[10px]">${escapeHtml(u.role)}</span></td><td class="p-3 text-center font-mono">${escapeHtml(u.pin)}</td><td class="p-3 text-center"><span class="px-2 py-0.5 rounded font-bold text-[10px] ${u.status==='Actif'?'bg-emerald-100 text-emerald-700':'bg-red-100 text-red-700'}">${escapeHtml(u.status)}</span></td><td class="p-3 text-center space-x-1"><button onclick="deleteUser('${u.id}')" class="bg-red-50 hover:bg-red-100 text-red-600 px-2 py-1 rounded text-[10px] font-bold">Supprimer</button></td></tr>`;
+  });
+}
+
+function populateCustomerSelect(){
+  const select=document.getElementById('pos-customer');if(!select)return;
+  const current=select.value||'CASH';
+  select.innerHTML='<option value="CASH">Client comptoir</option>';
+  customers.filter(c=>c.id!=='CASH').forEach(c=>{select.innerHTML+=`<option value="${c.id}">${escapeHtml(c.name)}${c.phone?' — '+escapeHtml(c.phone):''}</option>`;});
+  select.value=customers.some(c=>c.id===current)?current:'CASH';
+}
+function addCustomer(){
+  const name=prompt('Nom du client :');
+  if(!name||!name.trim())return;
+  const phone=prompt('Téléphone (facultatif) :')||'';
+  const type=prompt('Type (Particulier / Professionnel) :','Particulier')||'Particulier';
+  const id='CLI-'+Date.now().toString().slice(-8);
+  customers.unshift({id,name:name.trim(),phone:phone.trim(),type:type.trim()});
+  saveStorage('pos_customers',customers);
+  addAudit('CLIENT',`Création: ${name.trim()}`);
+  renderCustomers();populateCustomerSelect();
+}
+function renderCustomers(){
+  const body=document.getElementById('customers-table-body');if(!body)return;
+  const q=(document.getElementById('customer-search')?.value||'').toLowerCase();
+  body.innerHTML='';
+  customers.filter(c=>String(c.name).toLowerCase().includes(q)||String(c.phone||'').toLowerCase().includes(q)).forEach(c=>{
+    const cs=sales.filter(s=>s.status==='Payé'&&s.customerId===c.id);
+    const total=cs.reduce((a,s)=>a+(s.ttc||0),0);
+    body.innerHTML+=`<tr><td class="p-3 font-semibold">${escapeHtml(c.name)}</td><td class="p-3">${escapeHtml(c.phone||'-')}</td><td class="p-3">${escapeHtml(c.type||'Particulier')}</td><td class="p-3 text-right">${cs.length}</td><td class="p-3 text-right font-mono font-bold">${formatAriary(total)}</td><td class="p-3 text-center"><button onclick="deleteCustomer('${c.id}')" class="text-red-600 text-[11px] font-bold">Suppr.</button></td></tr>`;
+  });
+}
+function deleteCustomer(id){
+  if(id==='CASH')return;
+  const c=customers.find(x=>x.id===id);
+  if(!c||!confirm(`Supprimer le client ${c.name} ?`))return;
+  customers=customers.filter(x=>x.id!==id);
+  saveStorage('pos_customers',customers);
+  addAudit('CLIENT',`Suppression: ${c.name}`);
+  renderCustomers();populateCustomerSelect();
+}
+
+function recordStockMovement(productId,qty,type,reason=''){
+  const p=products.find(x=>x.id===productId);
+  if(!p||!qty)return;
+  stockMovements.unshift({id:'MVT-'+Date.now()+Math.random().toString(16).slice(2,6),date:new Date().toLocaleString('fr-FR'),productId,productName:p.name,qty,type,reason,user:currentUser?.name||'Système'});
+  stockMovements=stockMovements.slice(0,1000);
+  saveStorage('pos_stock_movements',stockMovements);
+}
+function renderMovements(){
+  const body=document.getElementById('movements-table-body');if(!body)return;
+  body.innerHTML='';
+  stockMovements.slice(0,300).forEach(m=>{
+    body.innerHTML+=`<tr><td class="p-3 text-slate-500">${escapeHtml(m.date)}</td><td class="p-3 font-semibold">${escapeHtml(m.productName)}</td><td class="p-3"><span class="px-2 py-0.5 rounded bg-slate-100 text-[10px] font-bold">${escapeHtml(m.type)}</span></td><td class="p-3 text-right font-mono font-bold ${m.qty<0?'text-red-600':'text-emerald-600'}">${m.qty>0?'+':''}${m.qty}</td><td class="p-3">${escapeHtml(m.reason||'-')}</td><td class="p-3">${escapeHtml(m.user||'-')}</td></tr>`;
+  });
+}
+function manualStockMovement(){
+  const p=products.find(x=>x.id===prompt('ID article (ex. ART-001) :'));
+  if(!p){alert('Article introuvable.');return;}
+  const qty=parseInt(prompt(`Quantité (+N ou -N) pour ${p.name} :`,'+10'));
+  if(!Number.isInteger(qty)||qty===0){alert('Quantité invalide.');return;}
+  if(p.stock+qty<0){alert('Stock insuffisant.');return;}
+  const reason=prompt('Motif :',qty>0?'Réception fournisseur':'Sortie')||'Mouvement manuel';
+  p.stock+=qty;
+  saveStorage('pos_products',products);
+  recordStockMovement(p.id,qty,qty>0?'ENTRÉE':'SORTIE',reason);
+  addAudit('STOCK',`${p.name}: ${qty>0?'+':''}${qty} — ${reason}`);
+  syncDataFromStorage();
+}
+
+function openCashSession(){
+  if(cashSession?.open){alert('Session déjà ouverte.');return;}
+  const opening=parseFloat(prompt('Fond de caisse initial (Ar) :','50000'));
+  if(!Number.isFinite(opening)||opening<0){alert('Montant invalide.');return;}
+  cashSession={open:true,opening,openedAt:new Date().toLocaleString('fr-FR'),openedAtISO:localDateTimeISO(),openedBy:currentUser?.name||'Utilisateur'};
+  saveStorage('pos_cash_session',cashSession);
+  addAudit('CAISSE',`Ouverture: ${formatAriary(opening)}`);
+  renderCashSession();
+}
+function getTodayCashSales(){
+  const d=localDateISO();
+  return sales.filter(s=>s.status==='Payé'&&s.payment==='Espèces'&&s.date.slice(0,10)===d).reduce((a,s)=>a+(s.ttc||0),0);
+}
+function renderCashSession(){
+  const st=document.getElementById('cash-session-status');if(!st)return;
+  const open=!!cashSession?.open;
+  st.textContent=open?'OUVERTE':'FERMÉE';
+  st.className=`px-2 py-1 rounded-full text-[10px] font-bold ${open?'bg-emerald-100 text-emerald-700':'bg-red-100 text-red-700'}`;
+  document.getElementById('cash-session-opening').textContent=formatAriary(cashSession?.opening||0);
+  document.getElementById('cash-session-expected').textContent=formatAriary((cashSession?.opening||0)+getTodayCashSales());
+  document.getElementById('cash-session-date').textContent=cashSession?.openedAt||'Aucune';
+}
+function closeCashSession(){
+  if(!cashSession?.open){alert('Aucune caisse ouverte.');return;}
+  const expected=(cashSession.opening||0)+getTodayCashSales();
+  const counted=parseFloat(prompt(`Espèces attendues : ${formatAriary(expected)}\nMontant compté (Ar) :`,String(expected)));
+  if(!Number.isFinite(counted)||counted<0)return;
+  const diff=counted-expected;
+  addAudit('CAISSE',`Clôture: ${formatAriary(counted)} — écart ${formatAriary(diff)}`);
+  cashSession={...cashSession,open:false,closedAt:new Date().toLocaleString('fr-FR'),counted,diff};
+  saveStorage('pos_cash_session',cashSession);
+  renderCashSession();
+  alert(`Caisse clôturée. Écart : ${formatAriary(diff)}.`);
+}
+
+function addAudit(action,detail=''){
+  auditLogs.unshift({date:new Date().toLocaleString('fr-FR'),user:currentUser?.name||'Système',action,detail});
+  auditLogs=auditLogs.slice(0,1000);
+  saveStorage('pos_audit_logs',auditLogs);
+}
+function renderAudit(){
+  const body=document.getElementById('audit-table-body');if(!body)return;
+  body.innerHTML='';
+  auditLogs.slice(0,300).forEach(a=>{
+    body.innerHTML+=`<tr><td class="p-3">${escapeHtml(a.date)}</td><td class="p-3 font-semibold">${escapeHtml(a.user)}</td><td class="p-3"><span class="px-2 py-0.5 rounded bg-blue-50 text-blue-700 text-[10px] font-bold">${escapeHtml(a.action)}</span></td><td class="p-3">${escapeHtml(a.detail)}</td></tr>`;
+  });
+}
+function clearAuditLog(){if(!confirm('Effacer tout le journal d\'audit ?'))return;auditLogs=[];saveStorage('pos_audit_logs',auditLogs);renderAudit();}
+
+/* ============ EXPORTS EXCEL (STYLE UNIFIÉ) ============ */
+function excelSafeName(value){return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]+/g,'_').replace(/^_+|_+$/g,'').replace(/_+/g,'_').slice(0,90)||'Rapport';}
+function getActivePageName(fallback='Rapport'){const a=document.querySelector('.tab-content:not(.hidden)');const h=a?.querySelector('h1,h2,h3');return(h?.textContent||'').trim()||fallback;}
+function buildExcelFilename(page,suffix=''){const p=excelSafeName(page||getActivePageName('Rapport'));const e=suffix?`_${excelSafeName(suffix)}`:'';return `KAJY_${p}${e}_${localDateISO()}.xlsx`;}
+
+/* ---- STYLES PARTAGÉS ---- */
+function getExcelStyles(){
+  const C=settings.excelColors||{};
+  const colors={primary:(C.primary||'1F4E78').replace('#','').toUpperCase(),secondary:(C.secondary||'D9EAF7').replace('#','').toUpperCase(),accent:(C.accent||'5B9BD5').replace('#','').toUpperCase(),subtitle:(C.subtitle||'17365D').replace('#','').toUpperCase(),subtitleBg:(C.subtitleBg||'D9EAF7').replace('#','').toUpperCase(),danger:(C.danger||'C00000').replace('#','').toUpperCase(),dangerBg:(C.dangerBg||'FCE4D6').replace('#','').toUpperCase(),success:(C.success||'548235').replace('#','').toUpperCase(),successBg:(C.successBg||'E2F0D9').replace('#','').toUpperCase(),neutral:(C.neutral||'F4F8FC').replace('#','').toUpperCase(),text:(C.text||'1F1F1F').replace('#','').toUpperCase()};
+  return{
+    colors,
+    title:{font:{bold:true,color:{rgb:'FFFFFF'},sz:16},fill:{fgColor:{rgb:colors.primary}},alignment:{horizontal:'center',vertical:'center'}},
+    titleBig:{font:{bold:true,color:{rgb:'FFFFFF'},sz:18},fill:{fgColor:{rgb:colors.primary}},alignment:{horizontal:'center',vertical:'center'}},
+    subtitle:{font:{bold:true,color:{rgb:colors.subtitle},sz:11},fill:{fgColor:{rgb:colors.subtitleBg}},alignment:{horizontal:'left',vertical:'center'}},
+    kpiLabel:{font:{bold:true,color:{rgb:'FFFFFF'},sz:10},fill:{fgColor:{rgb:colors.accent}},alignment:{horizontal:'center',vertical:'center',wrapText:true},border:{top:{style:'thin',color:{rgb:'FFFFFF'}},bottom:{style:'thin',color:{rgb:'FFFFFF'}},left:{style:'thin',color:{rgb:'FFFFFF'}},right:{style:'thin',color:{rgb:'FFFFFF'}}}},
+    kpiValue:{font:{bold:true,color:{rgb:colors.subtitle},sz:12},fill:{fgColor:{rgb:colors.secondary}},alignment:{horizontal:'center',vertical:'center'},border:{top:{style:'thin',color:{rgb:'B4C7E7'}},bottom:{style:'thin',color:{rgb:'B4C7E7'}},left:{style:'thin',color:{rgb:'B4C7E7'}},right:{style:'thin',color:{rgb:'B4C7E7'}}}},
+    kpiValueBig:{font:{bold:true,color:{rgb:'FFFFFF'},sz:16},fill:{fgColor:{rgb:colors.primary}},alignment:{horizontal:'center',vertical:'center'},border:{top:{style:'thin',color:{rgb:'FFFFFF'}},bottom:{style:'thin',color:{rgb:'FFFFFF'}},left:{style:'thin',color:{rgb:'FFFFFF'}},right:{style:'thin',color:{rgb:'FFFFFF'}}}},
+    header:{font:{bold:true,color:{rgb:'FFFFFF'},sz:10},fill:{fgColor:{rgb:colors.primary}},alignment:{horizontal:'center',vertical:'center',wrapText:true},border:{top:{style:'thin',color:{rgb:'FFFFFF'}},bottom:{style:'thin',color:{rgb:'FFFFFF'}},left:{style:'thin',color:{rgb:'FFFFFF'}},right:{style:'thin',color:{rgb:'FFFFFF'}}}},
+    cell:{font:{sz:10,color:{rgb:colors.text}},alignment:{vertical:'center'},border:{top:{style:'hair',color:{rgb:'D9E2F3'}},bottom:{style:'hair',color:{rgb:'D9E2F3'}},left:{style:'hair',color:{rgb:'D9E2F3'}},right:{style:'hair',color:{rgb:'D9E2F3'}}}},
+    cellAlt:{font:{sz:10,color:{rgb:colors.text}},alignment:{vertical:'center'},fill:{fgColor:{rgb:colors.neutral}},border:{top:{style:'hair',color:{rgb:'D9E2F3'}},bottom:{style:'hair',color:{rgb:'D9E2F3'}},left:{style:'hair',color:{rgb:'D9E2F3'}},right:{style:'hair',color:{rgb:'D9E2F3'}}}},
+    danger:{font:{bold:true,color:{rgb:colors.danger}},fill:{fgColor:{rgb:colors.dangerBg}},alignment:{horizontal:'center',vertical:'center'}},
+    success:{font:{bold:true,color:{rgb:colors.success}},fill:{fgColor:{rgb:colors.successBg}},alignment:{horizontal:'center',vertical:'center'}}
+  };
+}
+
+/* ---- GÉNÉRATEUR UNIFIÉ ---- */
+function buildKajyExcelReport({title,subtitle='',columns=[],rows=[],filename='',summary=[],statusColumn=null,statusRules=null,numberColumns=[]}){
+  if(typeof XLSX==='undefined'){alert('Module Excel indisponible.');return;}
+  const S=getExcelStyles();
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.aoa_to_sheet([]);
+  const nCols=Math.max(columns.length,6);
+  XLSX.utils.sheet_add_aoa(ws,[[`KAJY EXPRESS & Stock Pro — ${title}`]],{origin:'A1'});
+  XLSX.utils.sheet_add_aoa(ws,[[subtitle||`Rapport généré le ${new Date().toLocaleString('fr-FR')}`]],{origin:'A2'});
+  const cards=summary.length?summary:[['Nombre de lignes',rows.length],['Date d\'export',new Date().toLocaleString('fr-FR')]];
+  const kpiRow=cards.flatMap(x=>x);
+  XLSX.utils.sheet_add_aoa(ws,[kpiRow],{origin:'A4'});
+  const header=columns.map(c=>c.label);
+  const safeRows=rows.length?rows:[Object.fromEntries(columns.map(c=>[c.key||c.label,'']))];
+  const body=safeRows.map(r=>columns.map(c=>r[c.key]??''));
+  XLSX.utils.sheet_add_aoa(ws,[header],{origin:'A7'});
+  XLSX.utils.sheet_add_aoa(ws,body,{origin:'A8'});
+  const lastCol=Math.max(0,columns.length-1);
+  const lastRowIdx=7+body.length;
+  ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:Math.max(lastCol,nCols-1)}},{s:{r:1,c:0},e:{r:1,c:Math.max(lastCol,nCols-1)}}];
+  for(let i=0;i<cards.length;i++){const col=i*2;if(col+1<=nCols-1)ws['!merges'].push({s:{r:3,c:col},e:{r:3,c:col+1}});}
+  ws['!cols']=columns.map((c,i)=>({wch:c.width||Math.max(14,Math.min(35,header[i].length+8))}));
+  while(ws['!cols'].length<nCols)ws['!cols'].push({wch:18});
+  ws['!rows']=[{hpt:30},{hpt:20},{hpt:8},{hpt:26},{hpt:8},{hpt:8},{hpt:26}];
+  ws['!freeze']={xSplit:0,ySplit:7};
+  if(body.length)ws['!autofilter']={ref:`A7:${XLSX.utils.encode_col(lastCol)}${lastRowIdx}`};
+  if(ws['A1'])ws['A1'].s=S.title;
+  if(ws['A2'])ws['A2'].s=S.subtitle;
+  for(let i=0;i<cards.length;i++){
+    const lc=i*2,vc=lc+1;
+    const la=XLSX.utils.encode_cell({r:3,c:lc});
+    const va=XLSX.utils.encode_cell({r:3,c:vc});
+    if(ws[la])ws[la].s=S.kpiLabel;
+    if(ws[va])ws[va].s=S.kpiValue;
+  }
+  for(let c=0;c<columns.length;c++){const a=XLSX.utils.encode_cell({r:6,c});if(ws[a])ws[a].s=S.header;}
+  for(let r=0;r<body.length;r++){
+    const rowIdx=7+r;
+    for(let c=0;c<columns.length;c++){
+      const a=XLSX.utils.encode_cell({r:rowIdx,c});
+      if(!ws[a])continue;
+      ws[a].s=(r%2===0)?{...S.cell}:{...S.cellAlt};
+      const col=columns[c];
+      if(numberColumns.includes(col.key)||['Montant','Total','Prix','Qté','Quantité','Stock','CA','TVA','Bénéfice','Remise'].some(k=>col.label.includes(k))){
+        ws[a].z='#,##0';
+        ws[a].s.alignment={horizontal:'right',vertical:'center'};
+      }
+    }
+    if(statusColumn&&statusRules){
+      const idx=columns.findIndex(c=>c.key===statusColumn);
+      if(idx>=0){
+        const a=XLSX.utils.encode_cell({r:rowIdx,c:idx});
+        if(ws[a]){
+          const val=String(ws[a].v||'').toUpperCase();
+          const rule=statusRules[val];
+          if(rule==='danger')ws[a].s={...ws[a].s,...S.danger};
+          else if(rule==='success')ws[a].s={...ws[a].s,...S.success};
+        }
+      }
+    }
+  }
+  XLSX.utils.book_append_sheet(wb,ws,title.slice(0,31));
+  const summaryRows=[['KAJY EXPRESS & Stock Pro — RÉSUMÉ'],[],...cards.map(x=>[String(x[0]),String(x[1])]),[],['Date d\'export',new Date().toLocaleString('fr-FR')],['Version',APP_VERSION]];
+  const wsSum=XLSX.utils.aoa_to_sheet(summaryRows);
+  wsSum['!merges']=[{s:{r:0,c:0},e:{r:0,c:1}}];
+  wsSum['!cols']=[{wch:28},{wch:30}];
+  if(wsSum['A1'])wsSum['A1'].s=S.title;
+  for(let i=0;i<cards.length;i++){
+    const r=2+i;
+    const l=XLSX.utils.encode_cell({r,c:0});
+    const v=XLSX.utils.encode_cell({r,c:1});
+    if(wsSum[l])wsSum[l].s=S.kpiLabel;
+    if(wsSum[v])wsSum[v].s=S.kpiValue;
+  }
+  XLSX.utils.book_append_sheet(wb,wsSum,'Résumé');
+  XLSX.writeFile(wb,filename||buildExcelFilename(title));
+}
+
+/* ---- EXPORT STOCK (STYLE CAPTURE) ---- */
+function exportStockExcel(){
+  try{
+    if(typeof XLSX==='undefined'){alert('Module Excel indisponible.');return;}
+    normalizeData();
+    const S=getExcelStyles();
+    const c=S.colors;
+    const wb=XLSX.utils.book_new();
+    const ws=XLSX.utils.aoa_to_sheet([]);
+    const now=new Date().toLocaleString('fr-FR');
+    const totalValue=products.reduce((a,p)=>a+(safeNum(p.stock)*safeNum(p.cost)),0);
+    const totalQty=products.reduce((a,p)=>a+safeNum(p.stock),0);
+    const alertCount=products.filter(p=>safeNum(p.stock)<=safeNum(p.alert)).length;
+    const productCount=products.length;
+    XLSX.utils.sheet_add_aoa(ws,[['Gestion de Stock Simplifiée']],{origin:'A1'});
+    XLSX.utils.sheet_add_aoa(ws,[['Catalogue des articles','','','Date d\'export',now,'','','','','']],{origin:'A2'});
+    XLSX.utils.sheet_add_aoa(ws,[['Articles',productCount,'','Articles en alerte',alertCount,'','Quantité en stock',totalQty,'','Valeur du stock']],{origin:'A4'});
+    XLSX.utils.sheet_add_aoa(ws,[['N°','Code / SKU','Désignation','Catégorie','Prix Achat (Ar)','Prix Vente (Ar)','Stock','Seuil Alerte','Valeur Stock (Ar)','Statut']],{origin:'A7'});
+    const data=products.map((p,i)=>[i+1,p.sku||'',p.name||'',p.cat||'',safeNum(p.cost),safeNum(p.price),safeNum(p.stock),safeNum(p.alert),safeNum(p.stock)*safeNum(p.cost),safeNum(p.stock)<=safeNum(p.alert)?'ALERTE':'OK']);
+    XLSX.utils.sheet_add_aoa(ws,data,{origin:'A8'});
+    const lastCol=9,lastDataRow=7+data.length;
+    ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:9}},{s:{r:1,c:0},e:{r:1,c:2}},{s:{r:1,c:3},e:{r:1,c:4}},{s:{r:3,c:0},e:{r:3,c:1}},{s:{r:3,c:3},e:{r:3,c:4}},{s:{r:3,c:6},e:{r:3,c:7}},{s:{r:3,c:9},e:{r:4,c:9}}];
+    ws['!cols']=[{wch:6},{wch:18},{wch:38},{wch:18},{wch:16},{wch:16},{wch:10},{wch:12},{wch:18},{wch:12}];
+    ws['!rows']=[{hpt:32},{hpt:22},{hpt:8},{hpt:28},{hpt:8},{hpt:8},{hpt:28}];
+    ws['!freeze']={xSplit:0,ySplit:7};
+    if(data.length)ws['!autofilter']={ref:`A7:J${lastDataRow}`};
+    const titleStyle={font:{bold:true,color:{rgb:'FFFFFF'},sz:18},fill:{fgColor:{rgb:c.primary}},alignment:{horizontal:'center',vertical:'center'}};
+    const subtitleStyle={font:{bold:true,color:{rgb:'FFFFFF'},sz:11},fill:{fgColor:{rgb:c.accent}},alignment:{horizontal:'left',vertical:'center'}};
+    const dateLabel={font:{bold:true,color:{rgb:'FFFFFF'},sz:10},fill:{fgColor:{rgb:c.accent}},alignment:{horizontal:'center',vertical:'center'}};
+    const dateValue={font:{sz:10,color:{rgb:c.text}},fill:{fgColor:{rgb:c.secondary}},alignment:{horizontal:'center',vertical:'center'}};
+    const kpiLabel=Object.assign({},S.kpiLabel,{font:{bold:true,color:{rgb:'FFFFFF'},sz:11}});
+    const kpiValue=Object.assign({},S.kpiValue,{font:{bold:true,color:{rgb:c.subtitle},sz:13}});
+    const kpiValueBig=Object.assign({},S.kpiValueBig);
+    if(ws['A1'])ws['A1'].s=titleStyle;
+    ['A2','B2','C2'].forEach(a=>{if(ws[a])ws[a].s=subtitleStyle;});
+    if(ws['D2'])ws['D2'].s=dateLabel;
+    if(ws['E2'])ws['E2'].s=dateValue;
+    if(ws['A4'])ws['A4'].s=kpiLabel;
+    if(ws['B4'])ws['B4'].s=kpiValue;
+    if(ws['C4'])ws['C4'].s={fill:{fgColor:{rgb:c.primary}}};
+    if(ws['D4'])ws['D4'].s=kpiLabel;
+    if(ws['E4'])ws['E4'].s=kpiValue;
+    if(ws['F4'])ws['F4'].s={fill:{fgColor:{rgb:c.primary}}};
+    if(ws['G4'])ws['G4'].s=kpiLabel;
+    if(ws['H4'])ws['H4'].s=kpiValue;
+    if(ws['I4'])ws['I4'].s={fill:{fgColor:{rgb:c.primary}}};
+    if(ws['J4'])ws['J4'].s=Object.assign({},kpiLabel,{fill:{fgColor:{rgb:c.primary}}});
+    if(ws['J5'])ws['J5'].s=kpiValueBig;
+    for(let cc=0;cc<=lastCol;cc++){const a=XLSX.utils.encode_cell({r:6,c:cc});if(ws[a])ws[a].s=S.header;}
+    for(let r=0;r<data.length;r++){
+      const rowIdx=7+r;
+      const isAlert=data[r][9]==='ALERTE';
+      for(let cc=0;cc<=lastCol;cc++){
+        const a=XLSX.utils.encode_cell({r:rowIdx,c:cc});
+        if(!ws[a])continue;
+        ws[a].s=(r%2===0)?{...S.cell}:{...S.cellAlt};
+        if([4,5,8].includes(cc)){ws[a].z='#,##0';ws[a].s.alignment={horizontal:'right',vertical:'center'};}
+        if([6,7].includes(cc)){ws[a].z='#,##0';ws[a].s.alignment={horizontal:'center',vertical:'center'};}
+        if(cc===0)ws[a].s.alignment={horizontal:'center',vertical:'center'};
+      }
+      const sA=XLSX.utils.encode_cell({r:rowIdx,c:9});
+      if(ws[sA])ws[sA].s={...ws[sA].s,...(isAlert?S.danger:S.success)};
+    }
+    XLSX.utils.book_append_sheet(wb,ws,'Gestion de Stock');
+    const alertRows=products.filter(p=>safeNum(p.stock)<=safeNum(p.alert));
+    const wsAlertData=alertRows.length?alertRows.map((p,i)=>[i+1,p.sku||'',p.name||'',p.cat||'',safeNum(p.stock),safeNum(p.alert)]):[['Aucun produit en alerte']];
+    const wsAlert=XLSX.utils.aoa_to_sheet([['PRODUITS EN ALERTE'],[],['N°','SKU','Désignation','Catégorie','Stock','Seuil'],...wsAlertData]);
+    wsAlert['!merges']=[{s:{r:0,c:0},e:{r:0,c:5}}];
+    wsAlert['!cols']=[{wch:6},{wch:18},{wch:38},{wch:18},{wch:10},{wch:10}];
+    if(wsAlert['A1'])wsAlert['A1'].s=S.title;
+    for(let cc=0;cc<=5;cc++){const a=XLSX.utils.encode_cell({r:2,c:cc});if(wsAlert[a])wsAlert[a].s=S.header;}
+    XLSX.utils.book_append_sheet(wb,wsAlert,'Produits en alerte');
+    const movements=stockMovements.map(m=>({'Date':m.date||'','ID Article':m.productId||'','Produit':m.productName||'','Type':m.type||'','Quantité':safeNum(m.qty),'Motif':m.reason||'','Utilisateur':m.user||''}));
+    const wsMov=XLSX.utils.json_to_sheet(movements.length?movements:[{'Information':'Aucun mouvement'}]);
+    XLSX.utils.book_append_sheet(wb,wsMov,'Mouvements de stock');
+    const wsSum=XLSX.utils.aoa_to_sheet([['KAJY EXPRESS & Stock Pro — RÉSUMÉ'],[],['Articles',productCount],['Articles en alerte',alertCount],['Quantité totale en stock',totalQty],['Valeur du stock (Ar)',totalValue],[],['Date d\'export',now],['Version',APP_VERSION]]);
+    wsSum['!merges']=[{s:{r:0,c:0},e:{r:0,c:1}}];
+    wsSum['!cols']=[{wch:30},{wch:26}];
+    if(wsSum['A1'])wsSum['A1'].s=S.title;
+    for(let r=2;r<=5;r++){const l=XLSX.utils.encode_cell({r,c:0});const v=XLSX.utils.encode_cell({r,c:1});if(wsSum[l])wsSum[l].s=S.kpiLabel;if(wsSum[v])wsSum[v].s=S.kpiValue;}
+    XLSX.utils.book_append_sheet(wb,wsSum,'Résumé');
+    XLSX.writeFile(wb,buildExcelFilename(getActivePageName('Gestion Stock')));
+    addAudit('EXPORT','Export Excel du stock — style Gestion Simplifiée');
+  }catch(err){console.error(err);alert('Impossible d\'exporter : '+err.message);}
+}
+
+/* ---- AUTRES EXPORTS (style unifié) ---- */
+function exportSalesExcel(){
+  const rows=sales.map(s=>({id:s.id||'',date:s.date||'',cashier:s.cashier||'',payment:s.payment||'',discount:Number(s.discountAmount||0),total:Number(s.ttc||0),status:s.status||'Payé'}));
+  buildKajyExcelReport({title:'JOURNAL DES VENTES',subtitle:'Transactions et remboursements',columns:[{label:'ID Transaction',key:'id',width:18},{label:'Date & Heure',key:'date',width:22},{label:'Caissier',key:'cashier',width:22},{label:'Paiement',key:'payment',width:18},{label:'Remise',key:'discount',width:14},{label:'Total TTC',key:'total',width:16},{label:'Statut',key:'status',width:14}],rows,filename:buildExcelFilename(getActivePageName('Journal des Ventes')),summary:[['Transactions',rows.length],['CA TTC',rows.reduce((a,r)=>a+r.total,0)],['Remboursements',rows.filter(r=>/remb/i.test(r.status)).length]],statusColumn:'status',statusRules:{'PAYÉ':'success','REMBOURSÉ':'danger'},numberColumns:['discount','total']});
+  addAudit('EXPORT','Export Excel — Journal des ventes');
+}
+function exportProfitsExcel(){
+  const rows=sales.filter(s=>!/remb/i.test(s.status||'')).map(s=>({date:s.date||'',id:s.id||'',caht:Number(s.ht||0),tva:Number(s.tva||0),cattc:Number(s.ttc||0),profit:Number(s.profit||0)}));
+  buildKajyExcelReport({title:'RAPPORT RENTABILITÉ',subtitle:'Ventes et bénéfices',columns:[{label:'Date',key:'date',width:22},{label:'Transaction',key:'id',width:18},{label:'CA HT',key:'caht',width:15},{label:'TVA',key:'tva',width:14},{label:'CA TTC',key:'cattc',width:15},{label:'Bénéfice Net',key:'profit',width:16}],rows,filename:buildExcelFilename(getActivePageName('Rapport Rentabilité')),summary:[['Transactions',rows.length],['CA TTC',rows.reduce((a,r)=>a+r.cattc,0)],['Bénéfice net',rows.reduce((a,r)=>a+r.profit,0)]],numberColumns:['caht','tva','cattc','profit']});
+  addAudit('EXPORT','Export Excel — Rentabilité');
+}
+function exportDailyItemsExcel(){
+  const date=document.getElementById('filter-daily-date')?.value||localDateISO();
+  const map={};
+  sales.filter(s=>String(s.date||'').startsWith(date)&&!/remb/i.test(s.status||'')).forEach(s=>(s.items||[]).forEach(i=>{const k=i.id||i.name;if(!map[k])map[k]={date,id:i.id||'',name:i.name||'',qty:0,total:0};map[k].qty+=safeNum(i.qty);map[k].total+=safeNum(i.price)*safeNum(i.qty);}));
+  const rows=Object.values(map);
+  buildKajyExcelReport({title:'ARTICLES VENDUS PAR JOUR',subtitle:`Période : ${date}`,columns:[{label:'Date',key:'date',width:16},{label:'ID Article',key:'id',width:16},{label:'Désignation',key:'name',width:32},{label:'Qté Vendue',key:'qty',width:14},{label:'CA Total TTC',key:'total',width:16}],rows,filename:buildExcelFilename(getActivePageName('Articles Vendus par Jour'),date),summary:[['Articles',rows.length],['Quantité totale',rows.reduce((a,r)=>a+r.qty,0)],['CA TTC',rows.reduce((a,r)=>a+r.total,0)]],numberColumns:['qty','total']});
+  addAudit('EXPORT','Export Excel — Articles du jour');
+}
+function exportMovementsExcel(){
+  const rows=stockMovements.map(m=>({date:m.date||'',product:m.productName||'',type:m.type||'',quantity:safeNum(m.qty),reason:m.reason||'',user:m.user||''}));
+  buildKajyExcelReport({title:'MOUVEMENTS DE STOCK',subtitle:'Entrées, sorties, ventes, retours et corrections',columns:[{label:'Date',key:'date',width:22},{label:'Produit',key:'product',width:30},{label:'Type',key:'type',width:16},{label:'Quantité',key:'quantity',width:14},{label:'Motif',key:'reason',width:32},{label:'Utilisateur',key:'user',width:22}],rows,filename:buildExcelFilename(getActivePageName('Mouvements de Stock')),summary:[['Mouvements',rows.length],['Entrées',rows.filter(r=>r.quantity>0).length],['Sorties',rows.filter(r=>r.quantity<0).length]],numberColumns:['quantity']});
+  addAudit('EXPORT','Export Excel — Mouvements de stock');
+}
+function exportAuditExcel(){
+  const rows=auditLogs.map(a=>({date:a.date||'',user:a.user||'',action:a.action||'',detail:a.detail||''}));
+  buildKajyExcelReport({title:'JOURNAL D\'AUDIT',subtitle:'Traçabilité des actions sensibles',columns:[{label:'Date',key:'date',width:24},{label:'Utilisateur',key:'user',width:24},{label:'Action',key:'action',width:22},{label:'Détail',key:'detail',width:60}],rows,filename:buildExcelFilename(getActivePageName('Journal d Audit')),summary:[['Actions',rows.length],['Utilisateurs',new Set(rows.map(r=>r.user).filter(Boolean)).size]]});
+  addAudit('EXPORT','Export Excel — Journal d\'audit');
+}
+function exportDailyReportExcel(){
+  const date=document.getElementById('daily-report-date')?.value||localDateISO();
+  const valid=sales.filter(s=>String(s.date||'').startsWith(date)&&!/remb/i.test(s.status||''));
+  const rows=valid.map(s=>({id:s.id||'',date:s.date||'',payment:s.payment||'',total:Number(s.ttc||0),cashier:s.cashier||''}));
+  buildKajyExcelReport({title:'RAPPORT DE FIN DE JOURNÉE',subtitle:`Date : ${date}`,columns:[{label:'ID Transaction',key:'id',width:18},{label:'Date & Heure',key:'date',width:22},{label:'Paiement',key:'payment',width:18},{label:'Total TTC',key:'total',width:16},{label:'Caissier',key:'cashier',width:22}],rows,filename:buildExcelFilename(getActivePageName('Rapport de Fin de Journée'),date),summary:[['Tickets valides',rows.length],['Total encaissé TTC',rows.reduce((a,r)=>a+r.total,0)],['Espèces',rows.filter(r=>/esp|cash/i.test(r.payment)).reduce((a,r)=>a+r.total,0)]],numberColumns:['total']});
+  addAudit('EXPORT','Export Excel — Rapport fin de journée');
+}
+function exportReceiptExcel(){
+  if(typeof XLSX==='undefined'){alert('Module Excel indisponible.');return;}
+  const sale=currentReceipt||sales[0];
+  if(!sale){alert('Aucune vente.');return;}
+  const rows=(sale.items||[]).map(i=>({'Article':i.name||'','Quantité':safeNum(i.qty),'Prix unitaire (Ar)':safeNum(i.price),'Total (Ar)':safeNum(i.qty)*safeNum(i.price)}));
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),'Ticket');
+  XLSX.writeFile(wb,buildExcelFilename('Ticket',sale.id||Date.now()));
+}
+function exportReceiptPDF(){
+  try{
+    const{jsPDF}=window.jspdf;
+    if(!jsPDF){alert('Module PDF indisponible.');return;}
+    const doc=new jsPDF({unit:'mm',format:[80,200]});
+    const sale=currentReceipt||sales[0];
+    if(!sale){alert('Aucun reçu.');return;}
+    let y=8;
+    doc.setFontSize(11);doc.setFont(undefined,'bold');
+    doc.text(settings.shopName||'KAJY',40,y,{align:'center'});y+=5;
+    doc.setFontSize(7);doc.setFont(undefined,'normal');
+    doc.text(settings.address||'',40,y,{align:'center'});y+=3.5;
+    doc.text(`Tél : ${settings.phone||''}`,40,y,{align:'center'});y+=5;
+    doc.setFontSize(8);
+    doc.text(`Ticket : ${sale.id}`,4,y);y+=4;
+    doc.text(`Date : ${sale.date}`,4,y);y+=4;
+    doc.text(`Caissier : ${sale.cashier}`,4,y);y+=4;
+    doc.text(`Client : ${sale.customerName||'Client comptoir'}`,4,y);y+=4;
+    doc.text(`Paiement : ${sale.payment}`,4,y);y+=5;
+    doc.line(4,y,76,y);y+=3;
+    (sale.items||[]).forEach(item=>{doc.text(`${item.qty}x ${String(item.name).slice(0,30)}`,4,y);doc.text(formatAriary(item.price*item.qty),76,y,{align:'right'});y+=4;});
+    doc.line(4,y,76,y);y+=4;
+    doc.text(`Sous-Total : ${formatAriary(sale.subtotal||0)}`,76,y,{align:'right'});y+=4;
+    doc.text(`Remise : -${formatAriary(sale.discountAmount||0)}`,76,y,{align:'right'});y+=4;
+    doc.text(`HT : ${formatAriary(sale.ht||0)}`,76,y,{align:'right'});y+=4;
+    doc.text(`TVA : ${formatAriary(sale.tva||0)}`,76,y,{align:'right'});y+=4;
+    doc.setFont(undefined,'bold');doc.setFontSize(10);
+    doc.text(`TTC : ${formatAriary(sale.ttc||0)}`,76,y,{align:'right'});y+=5;
+    doc.setFontSize(8);doc.setFont(undefined,'normal');
+    doc.text(`Reçu : ${formatAriary(sale.paid||sale.ttc||0)}`,76,y,{align:'right'});y+=4;
+    doc.text(`Rendu : ${formatAriary(sale.change||0)}`,76,y,{align:'right'});y+=6;
+    doc.setFontSize(7);doc.text('Merci pour votre visite !',40,y,{align:'center'});
+    doc.save(`Ticket_${sale.id}.pdf`);
+  }catch(err){alert('Erreur PDF : '+err.message);}
+}
+
+function exportDatabaseBackup(){
+  const backupData={app:'ExpressPOS',version:APP_VERSION,schema:4,exportedAt:localDateTimeISO(),settings,products,users,sales,customers,stockMovements,auditLogs,cashSession};
+  const dataStr="data:text/json;charset=utf-8,"+encodeURIComponent(JSON.stringify(backupData,null,2));
+  const a=document.createElement('a');
+  a.setAttribute("href",dataStr);
+  a.setAttribute("download",`backup_pos_${localDateISO()}.json`);
+  document.body.appendChild(a);a.click();a.remove();
+}
+function importDatabaseBackup(event){
+  const file=event.target.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const data=JSON.parse(e.target.result);
+      if(data.app==='ExpressPOS'&&data.settings&&Array.isArray(data.products)&&Array.isArray(data.users)&&Array.isArray(data.sales)){
+        saveStorage('pos_settings',data.settings);
+        saveStorage('pos_customers',data.customers||customers);
+        saveStorage('pos_stock_movements',data.stockMovements||[]);
+        saveStorage('pos_audit_logs',data.auditLogs||[]);
+        saveStorage('pos_cash_session',data.cashSession||null);
+        saveStorage('pos_products',data.products);
+        saveStorage('pos_users',data.users);
+        saveStorage('pos_sales',data.sales);
+        syncDataFromStorage();
+        alert('Sauvegarde restaurée !');
+      }else alert('Fichier invalide.');
+    }catch(err){alert('Erreur lecture JSON.');}
+  };
+  reader.readAsText(file);
+}
+
+function requireAdminForDataClear(){if(currentRole!=='ADMIN'){alert('Accès refusé.');return false;}return true;}
+function refreshAfterAdminClear(){syncDataFromStorage();renderStockTable();renderSalesTable();renderDailyReport();renderProfitsTables();renderDailyItemsTable();updateDashboard();renderMovements();renderAudit();renderCashSession();if(typeof lucide!=='undefined')lucide.createIcons();}
+function adminClearStockData(){
+  if(!requireAdminForDataClear())return;
+  if(!confirm('Vider toute la Gestion Stock ? Articles conservés, stock à 0.'))return;
+  const count=products.length;
+  products=products.map(p=>({...p,stock:0}));
+  saveStorage('pos_products',products);
+  addAudit('NETTOYAGE',`Stock vidé — ${count} article(s).`);
+  refreshAfterAdminClear();
+  alert(`Stock vidé : ${count} article(s).`);
+}
+function adminClearSalesData(){
+  if(!requireAdminForDataClear())return;
+  if(!confirm(`Supprimer les ${sales.length} transaction(s) ?`))return;
+  const count=sales.length;
+  sales=[];
+  saveStorage('pos_sales',sales);
+  addAudit('NETTOYAGE',`Journal vidé — ${count} transaction(s).`);
+  refreshAfterAdminClear();
+  alert(`Journal vidé : ${count}.`);
+}
+function adminClearMovementsData(){
+  if(!requireAdminForDataClear())return;
+  if(!confirm(`Supprimer les ${stockMovements.length} mouvement(s) ?`))return;
+  const count=stockMovements.length;
+  stockMovements=[];
+  saveStorage('pos_stock_movements',stockMovements);
+  addAudit('NETTOYAGE',`Mouvements vidés — ${count}.`);
+  refreshAfterAdminClear();
+  alert(`Mouvements vidés : ${count}.`);
+}
+function adminClearCommercialData(){
+  if(!requireAdminForDataClear())return;
+  if(!confirm('ATTENTION : vider Stock (quantités à 0), Journal et Mouvements ?'))return;
+  if(!confirm('CONFIRMATION FINALE : irréversible. Continuer ?'))return;
+  const counts={products:products.length,sales:sales.length,movements:stockMovements.length};
+  products=products.map(p=>({...p,stock:0}));
+  sales=[];
+  stockMovements=[];
+  saveStorage('pos_products',products);
+  saveStorage('pos_sales',sales);
+  saveStorage('pos_stock_movements',stockMovements);
+  addAudit('NETTOYAGE',`Données commerciales vidées — stock: ${counts.products}, ventes: ${counts.sales}, mouvements: ${counts.movements}.`);
+  refreshAfterAdminClear();
+  alert(`Nettoyage terminé.`);
+}
+function resetSystemData(){
+  if(confirm("ATTENTION : effacer les données ExpressPOS actuelles ?")){
+    Object.keys(localStorage).filter(k=>k.startsWith(APP_STORAGE_PREFIX)||k==='pos_schema_version').forEach(k=>localStorage.removeItem(k));
+    location.reload();
+  }
+}
+
+function updateOnlineStatus(){
+  const dot=document.getElementById('pwa-dot');
+  const text=document.getElementById('pwa-text');
+  if(!dot||!text)return;
+  if(navigator.onLine){dot.className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse";text.textContent="En ligne (PWA)";}
+  else{dot.className="w-2 h-2 rounded-full bg-amber-400 animate-pulse";text.textContent="Hors-ligne (PWA)";}
+}
+
+function getAppDiagnostics(){
+  normalizeData();
+  const keys=Object.keys(localStorage).filter(k=>k.startsWith(APP_STORAGE_PREFIX));
+  const bytes=keys.reduce((n,k)=>n+(localStorage.getItem(k)||'').length,0);
+  return{version:APP_VERSION,schema:Number(localStorage.getItem('pos_schema_version')||4),online:navigator.onLine,products:products.length,users:users.length,customers:customers.length,sales:sales.length,stockMovements:stockMovements.length,auditLogs:auditLogs.length,storageApproxKB:Math.round(bytes/1024),syncQueue:getSyncQueue().length,syncEndpoint:getSyncEndpoint(),cashOpen:!!cashSession?.open,autoBackups:(()=>{try{return JSON.parse(localStorage.getItem(AUTO_BACKUP_KEY)||'[]').length;}catch(_){return 0;}})()};
+}
+
+window.ExpressPOS={version:APP_VERSION,diagnostics:getAppDiagnostics,backup:{now:autoBackupNow,restore:restoreFromAutoBackup,list:()=>{try{return JSON.parse(localStorage.getItem(AUTO_BACKUP_KEY)||'[]').map((s,i)=>({index:i,reason:s.reason,savedAt:s.savedAt,sizeKB:s.sizeKB}));}catch(_){return[];}},clear:clearAutoBackups}};
+</script>
+</body>
+</html>
