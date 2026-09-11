@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KAJY EXPRESS & Stock Pro 5.1.1 - Système de Caisse</title>
+<title>KAJY EXPRESS & Stock Pro 5.1.4 - Système de Caisse</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/lucide@latest"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -19,33 +19,14 @@
 .avatar-crop-preview{width:120px;height:120px;border-radius:50%;object-fit:cover;overflow:hidden;position:relative;margin:0 auto;border:3px solid #3b82f6}
 .sales-action{position:relative;z-index:30;pointer-events:auto!important}
 #sales-table-body td:last-child{position:relative;z-index:20}
-/* Bouton Retour Back Office flottant */
-.back-office-return-btn {
-    position: fixed;
-    bottom: 24px;
-    right: 24px;
-    z-index: 9998;
-    display: none;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 20px;
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-    color: white;
-    font-weight: 700;
-    font-size: 13px;
-    border-radius: 9999px;
-    box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.5);
-    transition: all 0.2s ease;
-    cursor: pointer;
-    border: none;
-}
-.back-office-return-btn:hover {
-    transform: translateY(-2px) scale(1.03);
-    box-shadow: 0 15px 30px -5px rgba(99, 102, 241, 0.6);
-}
-.back-office-return-btn.visible {
-    display: flex;
-}
+/* Barre flottante : statut réseau + Retour Back Office, sans superposition */
+#kajy-floating-actions{position:fixed;right:16px;bottom:16px;z-index:9998;display:flex;align-items:center;gap:8px;}
+#kajy-offline-indicator{position:static!important;display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 13px;border-radius:9999px;font-size:11px;font-weight:800;box-shadow:0 8px 20px rgba(15,23,42,.18);white-space:nowrap;border:0;}
+#kajy-offline-indicator.online{background:#16a34a!important;color:#fff!important;}
+#kajy-offline-indicator.offline{background:#dc2626!important;color:#fff!important;}
+.back-office-return-btn {position:static;display:none;align-items:center;gap:8px;min-height:40px;padding:0 14px;background:#4f46e5;color:white;font-weight:700;font-size:12px;border-radius:9999px;box-shadow:0 8px 20px rgba(79,70,229,.25);transition:all .2s ease;cursor:pointer;border:none;}
+.back-office-return-btn:hover{transform:translateY(-1px);}
+.back-office-return-btn.visible{display:inline-flex;}
 /* Accordéon */
 .accordion-content {
     max-height: 0;
@@ -96,7 +77,9 @@ button{-webkit-tap-highlight-color:transparent;}
   #sec-pos select{width:100%;}
   /* Boutons d'action plus faciles à presser */
   .sales-action{min-width:44px;min-height:44px;}
-  .back-office-return-btn{right:12px;bottom:calc(12px + env(safe-area-inset-bottom));padding:10px 14px;font-size:12px;}
+  #kajy-floating-actions{right:10px;bottom:calc(10px + env(safe-area-inset-bottom));gap:6px;max-width:calc(100vw - 20px);}
+  #kajy-offline-indicator{min-height:44px;padding:0 12px;font-size:10px;}
+  .back-office-return-btn{min-height:44px;padding:0 12px;font-size:11px;}
 }
 @media (max-width: 480px){
   header .max-w-7xl{padding-left:8px!important;padding-right:8px!important;}
@@ -106,7 +89,8 @@ button{-webkit-tap-highlight-color:transparent;}
   #login-logo-container{width:112px;height:112px;}
   #login-pin{letter-spacing:.5em;}
   #back-office-return-btn span{display:none;}
-  .back-office-return-btn{width:46px;height:46px;padding:0;justify-content:center;border-radius:50%;}
+  .back-office-return-btn{width:46px;height:46px;min-height:46px;padding:0;justify-content:center;border-radius:50%;}
+  #kajy-offline-indicator{min-width:88px;height:46px;min-height:46px;}
   /* Évite les boutons minuscules dans les en-têtes de cartes */
   .flex.justify-between button{min-width:44px;}
 }
@@ -125,9 +109,16 @@ if('serviceWorker' in navigator && isHttp && !isElectron && !isAndroidApp){
 window.addEventListener('load',()=>{navigator.serviceWorker.register('./sw.js',{scope:'./'}).then(r=>console.log('SW actif',r.scope)).catch(e=>console.warn('SW non dispo',e));});
 }
 function updateNetworkStatus(){
-window.KAJY_OFFLINE.online=navigator.onLine;
-const el=document.getElementById('kajy-offline-indicator');
-if(el){el.textContent=navigator.onLine?'● En ligne':'● Hors ligne — données locales';el.className='fixed bottom-3 right-3 z-[9999] px-3 py-1.5 rounded-full text-[10px] font-bold shadow-lg bg-slate-900 text-white';}
+  const online=!!navigator.onLine;
+  window.KAJY_OFFLINE.online=online;
+  const el=document.getElementById('kajy-offline-indicator');
+  if(el){
+    el.textContent=online?'● En ligne':'● Hors ligne';
+    el.className=online?'online':'offline';
+    el.setAttribute('aria-label',online?'Connexion Internet active':'Hors ligne, données locales actives');
+    el.title=online?'Connexion Internet active':'Hors ligne — les données locales restent disponibles';
+  }
+  if(typeof updateSyncUI==='function') updateSyncUI(online?'Connexion disponible.':'Hors ligne : données locales.');
 }
 window.addEventListener('online',updateNetworkStatus);
 window.addEventListener('offline',updateNetworkStatus);
@@ -135,13 +126,14 @@ document.addEventListener('DOMContentLoaded',updateNetworkStatus);
 </script>
 </head>
 <body class="h-full font-sans antialiased text-slate-800 flex flex-col">
-<div id="kajy-offline-indicator" aria-live="polite">● Vérification réseau…</div>
-
-<!-- BOUTON RETOUR BACK OFFICE (Flottant) -->
-<button id="back-office-return-btn" class="back-office-return-btn" onclick="switchTab('admin-dashboard')">
-    <i data-lucide="arrow-left" class="w-4 h-4"></i>
-    <span>Retour au Back Office</span>
-</button>
+<div id="kajy-floating-actions" aria-label="Actions rapides">
+  <div id="kajy-offline-indicator" aria-live="polite" role="status">● Vérification…</div>
+  <!-- BOUTON RETOUR BACK OFFICE -->
+  <button id="back-office-return-btn" class="back-office-return-btn" onclick="switchTab('admin-dashboard')" aria-label="Retour au Back Office" title="Retour au Back Office">
+      <i data-lucide="arrow-left" class="w-4 h-4"></i>
+      <span>Retour au Back Office</span>
+  </button>
+</div>
 
 <!-- ÉCRAN LOGIN -->
 <div id="auth-screen" class="fixed inset-0 bg-slate-900 z-50 flex items-center justify-center p-4 overflow-y-auto">
@@ -968,7 +960,7 @@ document.addEventListener('DOMContentLoaded',updateNetworkStatus);
 /* ============================================================================
    KAJY EXPRESS & Stock Pro v5.1.0
    ============================================================================ */
-const APP_VERSION='5.1.2';
+const APP_VERSION='5.1.4';
 const APP_STORAGE_PREFIX='pos_';
 const SYNC_QUEUE_KEY='pos_sync_queue';
 const SYNC_META_KEY='pos_sync_meta';
@@ -2628,51 +2620,61 @@ function importDatabaseBackup(event){
 }
 
 function requireAdminForDataClear(){if(currentRole!=='ADMIN'){alert('Accès refusé.');return false;}return true;}
-function refreshAfterAdminClear(){syncDataFromStorage();renderStockTable();renderSalesTable();renderDailyReport();renderProfitsTables();renderDailyItemsTable();updateDashboard();renderMovements();renderAudit();renderCashSession();if(typeof lucide!=='undefined')lucide.createIcons();}
+function verifySavedArray(key, expected){
+  try{return JSON.stringify(loadStorage(key,null))===JSON.stringify(expected);}catch(_){return false;}
+}
+function refreshAfterAdminClear(){
+  syncDataFromStorage();
+  renderStockTable();renderSalesTable();renderDailyReport();renderProfitsTables();renderDailyItemsTable();
+  updateDashboard();renderMovements();renderAudit();renderCashSession();renderAdminDashboard();
+  updateSyncUI('Données mises à jour.');
+  if(typeof lucide!=='undefined')lucide.createIcons();
+}
 function adminClearStockData(){
   if(!requireAdminForDataClear())return;
-  if(!confirm('Vider toute la Gestion Stock ? Articles conservés, stock à 0.'))return;
+  if(!confirm('Vider toute la Gestion Stock ? Les articles sont conservés et leurs quantités passent à 0.'))return;
   const count=products.length;
-  products=products.map(p=>({...p,stock:0}));
-  saveStorage('pos_products',products);
+  const nextProducts=products.map(p=>({...p,stock:0}));
+  if(!saveStorage('pos_products',nextProducts)||!verifySavedArray('pos_products',nextProducts)){alert('Échec : le stock n’a pas pu être enregistré.');return;}
+  products=nextProducts;
   addAudit('NETTOYAGE',`Stock vidé — ${count} article(s).`);
   refreshAfterAdminClear();
-  alert(`Stock vidé : ${count} article(s).`);
+  alert(`Stock vidé : ${count} article(s). Toutes les quantités affichent maintenant 0.`);
 }
 function adminClearSalesData(){
   if(!requireAdminForDataClear())return;
-  if(!confirm(`Supprimer les ${sales.length} transaction(s) ?`))return;
+  if(!confirm(`Supprimer les ${sales.length} transaction(s) du journal des ventes ?`))return;
   const count=sales.length;
-  sales=[];
-  saveStorage('pos_sales',sales);
-  addAudit('NETTOYAGE',`Journal vidé — ${count} transaction(s).`);
+  const nextSales=[];
+  if(!saveStorage('pos_sales',nextSales)||!verifySavedArray('pos_sales',nextSales)){alert('Échec : les ventes n’ont pas pu être supprimées.');return;}
+  sales=nextSales;
+  addAudit('NETTOYAGE',`Journal des ventes vidé — ${count} transaction(s).`);
   refreshAfterAdminClear();
-  alert(`Journal vidé : ${count}.`);
+  alert(`Ventes vidées : ${count} transaction(s).`);
 }
 function adminClearMovementsData(){
   if(!requireAdminForDataClear())return;
-  if(!confirm(`Supprimer les ${stockMovements.length} mouvement(s) ?`))return;
+  if(!confirm(`Supprimer les ${stockMovements.length} mouvement(s) de stock ?`))return;
   const count=stockMovements.length;
-  stockMovements=[];
-  saveStorage('pos_stock_movements',stockMovements);
-  addAudit('NETTOYAGE',`Mouvements vidés — ${count}.`);
+  const nextMovements=[];
+  if(!saveStorage('pos_stock_movements',nextMovements)||!verifySavedArray('pos_stock_movements',nextMovements)){alert('Échec : les mouvements n’ont pas pu être supprimés.');return;}
+  stockMovements=nextMovements;
+  addAudit('NETTOYAGE',`Mouvements de stock vidés — ${count}.`);
   refreshAfterAdminClear();
   alert(`Mouvements vidés : ${count}.`);
 }
 function adminClearCommercialData(){
   if(!requireAdminForDataClear())return;
-  if(!confirm('ATTENTION : vider Stock (quantités à 0), Journal et Mouvements ?'))return;
-  if(!confirm('CONFIRMATION FINALE : irréversible. Continuer ?'))return;
+  if(!confirm('ATTENTION : vider Stock (quantités à 0), Journal des ventes et Mouvements ?'))return;
+  if(!confirm('CONFIRMATION FINALE : cette opération est irréversible. Continuer ?'))return;
+  const nextProducts=products.map(p=>({...p,stock:0})),nextSales=[],nextMovements=[];
+  if(!saveStorage('pos_products',nextProducts)||!saveStorage('pos_sales',nextSales)||!saveStorage('pos_stock_movements',nextMovements)){alert('Échec de sauvegarde du nettoyage. Aucune confirmation ne sera affichée.');return;}
+  if(!verifySavedArray('pos_products',nextProducts)||!verifySavedArray('pos_sales',nextSales)||!verifySavedArray('pos_stock_movements',nextMovements)){alert('Vérification échouée : les données n’ont pas été correctement enregistrées.');return;}
   const counts={products:products.length,sales:sales.length,movements:stockMovements.length};
-  products=products.map(p=>({...p,stock:0}));
-  sales=[];
-  stockMovements=[];
-  saveStorage('pos_products',products);
-  saveStorage('pos_sales',sales);
-  saveStorage('pos_stock_movements',stockMovements);
+  products=nextProducts;sales=nextSales;stockMovements=nextMovements;
   addAudit('NETTOYAGE',`Données commerciales vidées — stock: ${counts.products}, ventes: ${counts.sales}, mouvements: ${counts.movements}.`);
   refreshAfterAdminClear();
-  alert(`Nettoyage terminé.`);
+  alert('Nettoyage terminé : stock à 0, ventes supprimées et mouvements supprimés.');
 }
 function resetSystemData(){
   if(confirm("ATTENTION : effacer les données ExpressPOS actuelles ?")){
