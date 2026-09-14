@@ -56,7 +56,7 @@ html.kajy-offline-shell .back-office-return-btn{display:none}
 }
 </style>
 <style>
-@media print{body *{visibility:hidden!important}#printable-receipt,#printable-receipt *{visibility:visible!important}#printable-receipt{position:absolute!important;left:0!important;top:0!important;width:100%!important;margin:0!important;padding:15px!important;background:#fff!important;color:#000!important;box-shadow:none!important}}
+@media print{body *{visibility:hidden!important}#printable-receipt,#printable-receipt *{visibility:visible!important}#printable-receipt{position:absolute!important;left:0!important;top:0!important;width:100%!important;margin:0!important;padding:15px!important;background:#fff!important;color:#000!important;box-shadow:none!important}#printable-bl,#printable-bl *{visibility:visible!important}#printable-bl{position:absolute!important;left:0!important;top:0!important;width:100%!important;margin:0!important;padding:15px!important;background:#fff!important;color:#000!important;box-shadow:none!important}}
 #app-logo-container{transition:transform .2s ease,box-shadow .2s ease}#app-logo-container:hover{transform:translateY(-1px) scale(1.03)}
 .custom-scrollbar::-webkit-scrollbar{width:6px}.custom-scrollbar::-webkit-scrollbar-track{background:#f1f5f9}.custom-scrollbar::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}
 .avatar-crop-preview{width:120px;height:120px;border-radius:50%;object-fit:cover;overflow:hidden;position:relative;margin:0 auto;border:3px solid #3b82f6}
@@ -103,6 +103,28 @@ html.kajy-offline-shell .back-office-return-btn{display:none}
 }
 .accordion-header.open .chevron {
     transform: rotate(180deg);
+}
+/* Logistics card */
+.logistics-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 16px;
+    transition: all 0.2s ease;
+}
+.logistics-card:hover {
+    border-color: #cbd5e1;
+}
+.logistics-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 10px;
+    border-radius: 9999px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 </style>
 <script>
@@ -317,68 +339,42 @@ document.addEventListener('DOMContentLoaded',updateNetworkStatus);
 
 <!-- STOCK -->
 <section id="sec-stock" class="tab-content hidden space-y-4">
-  <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-    <div>
-      <h2 class="font-bold text-base text-slate-800">Catalogue des Articles & Stocks</h2>
-      <p class="text-xs text-slate-500">Gestion des prix, modification, suppression d'articles et réapprovisionnement</p>
+<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+<div><h2 class="font-bold text-base text-slate-800">Catalogue des Articles & Stocks</h2><p class="text-xs text-slate-500">Gestion des prix, suppression d'articles et réapprovisionnement</p></div>
+<div class="flex items-center space-x-2">
+<button onclick="exportStockExcel()" class="bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center space-x-1 shadow-sm transition"><i data-lucide="file-spreadsheet" class="w-4 h-4"></i><span>Exporter (XLSX)</span></button>
+<button onclick="deleteSelectedProducts()" class="admin-only bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center space-x-1 shadow-sm transition"><i data-lucide="trash-2" class="w-4 h-4"></i><span>Supprimer Sélection</span></button>
+<button onclick="openAddProductModal()" class="admin-only bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center space-x-1 shadow-sm transition"><i data-lucide="plus" class="w-4 h-4"></i><span>Nouveau Produit</span></button>
+</div>
+</div>
+<div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex flex-col sm:flex-row gap-2">
+<input type="text" id="stock-search" oninput="renderStockTable()" placeholder="Filtrer par nom ou SKU..." class="flex-grow border border-slate-300 rounded-lg px-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+<select id="stock-cat-filter" onchange="renderStockTable()" class="border border-slate-300 rounded-lg px-3 py-1.5 text-xs bg-white"><option value="ALL">Toutes catégories</option></select>
+</div>
+<div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+<div class="overflow-x-auto"><table class="w-full text-left text-xs">
+<thead class="bg-slate-800 text-white uppercase text-[10px] tracking-wider"><tr>
+<th class="p-3 admin-only text-center"><input type="checkbox" id="select-all-stock" onclick="toggleSelectAllStock(this)"></th>
+<th class="p-3">ID</th><th class="p-3">SKU</th><th class="p-3">Désignation</th><th class="p-3">Catégorie</th>
+<th class="p-3 text-right">Prix Achat HT</th><th class="p-3 text-right">Transport TTC</th><th class="p-3 text-right">Prix Vente TTC</th><th class="p-3 text-right">Stock</th>
+<th class="p-3 text-right">Seuil Alerte</th><th class="p-3 text-center">Statut</th><th class="p-3 text-center admin-only">Actions</th>
+</tr></thead>
+<tbody id="stock-table-body" class="divide-y divide-slate-100"></tbody>
+</table></div>
+</div>
+<!-- Synthèse du stock : calculée à partir des articles actuellement affichés -->
+<div id="stock-total-summary" class="bg-slate-900 text-white rounded-xl shadow-sm border border-slate-700 p-3.5">
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+    <div class="flex items-center gap-2">
+      <i data-lucide="boxes" class="w-4 h-4 text-emerald-400"></i>
+      <span class="text-xs font-bold">TOTAL DES PRODUITS EN STOCK</span>
     </div>
-    <div class="flex items-center space-x-2">
-      <button onclick="exportStockExcel()" class="bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center space-x-1 shadow-sm transition">
-        <i data-lucide="file-spreadsheet" class="w-4 h-4"></i><span>Exporter (XLSX)</span>
-      </button>
-      <button onclick="deleteSelectedProducts()" class="admin-only bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center space-x-1 shadow-sm transition">
-        <i data-lucide="trash-2" class="w-4 h-4"></i><span>Supprimer Sélection</span>
-      </button>
-      <button onclick="openAddProductModal()" class="admin-only bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center space-x-1 shadow-sm transition">
-        <i data-lucide="plus" class="w-4 h-4"></i><span>Nouveau Produit</span>
-      </button>
-    </div>
-  </div>
-
-  <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex flex-col sm:flex-row gap-2">
-    <input type="text" id="stock-search" oninput="renderStockTable()" placeholder="Filtrer par nom ou SKU..." class="flex-grow border border-slate-300 rounded-lg px-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-    <select id="stock-cat-filter" onchange="renderStockTable()" class="border border-slate-300 rounded-lg px-3 py-1.5 text-xs bg-white">
-      <option value="ALL">Toutes catégories</option>
-    </select>
-  </div>
-
-  <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-    <div class="overflow-x-auto">
-      <table class="w-full text-left text-xs">
-        <thead class="bg-slate-800 text-white uppercase text-[10px] tracking-wider">
-          <tr>
-            <th class="p-3 admin-only text-center"><input type="checkbox" id="select-all-stock" onclick="toggleSelectAllStock(this)"></th>
-            <th class="p-3">ID</th>
-            <th class="p-3">SKU</th>
-            <th class="p-3">Désignation</th>
-            <th class="p-3">Catégorie</th>
-            <th class="p-3 text-right">Prix Achat HT</th>
-            <th class="p-3 text-right">Transport TTC</th>
-            <th class="p-3 text-right">Prix Vente TTC</th>
-            <th class="p-3 text-right">Stock</th>
-            <th class="p-3 text-right">Seuil Alerte</th>
-            <th class="p-3 text-center">Statut</th>
-            <th class="p-3 text-center admin-only">Actions</th>
-          </tr>
-        </thead>
-        <tbody id="stock-table-body" class="divide-y divide-slate-100"></tbody>
-      </table>
+    <div class="flex flex-wrap items-center gap-4 text-xs">
+      <span>Quantité : <strong id="stock-total-qty" class="font-mono text-sm">0</strong> unité(s)</span>
+      <span>Valeur au prix de vente : <strong id="stock-total-value" class="font-mono text-sm text-emerald-300">0 Ar</strong></span>
     </div>
   </div>
-
-  <!-- Synthèse du stock -->
-  <div id="stock-total-summary" class="bg-slate-900 text-white rounded-xl shadow-sm border border-slate-700 p-3.5">
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-      <div class="flex items-center gap-2">
-        <i data-lucide="boxes" class="w-4 h-4 text-emerald-400"></i>
-        <span class="text-xs font-bold">TOTAL DES PRODUITS EN STOCK</span>
-      </div>
-      <div class="flex flex-wrap items-center gap-4 text-xs">
-        <span>Quantité : <strong id="stock-total-qty" class="font-mono text-sm">0</strong> unité(s)</span>
-        <span>Valeur au prix de vente : <strong id="stock-total-value" class="font-mono text-sm text-emerald-300">0 Ar</strong></span>
-      </div>
-    </div>
-  </div>
+</div>
 </section>
 
 <!-- VENTES -->
@@ -629,6 +625,20 @@ document.addEventListener('DOMContentLoaded',updateNetworkStatus);
                     </div>
                 </div>
 
+                <!-- Catégorie : Logistique & Transport (NOUVEAU) -->
+                <div class="accordion-item border border-slate-200 rounded-lg overflow-hidden">
+                    <button class="accordion-header w-full flex items-center justify-between p-3 bg-cyan-50 hover:bg-cyan-100 text-left transition" onclick="toggleAccordion(this)">
+                        <span class="flex items-center space-x-2 text-xs font-bold text-cyan-700"><i data-lucide="truck" class="w-4 h-4"></i><span>Logistique & Transport</span></span>
+                        <i data-lucide="chevron-down" class="chevron w-4 h-4 text-cyan-600"></i>
+                    </button>
+                    <div class="accordion-content bg-white">
+                        <div class="p-2 space-y-1">
+                            <button onclick="switchTab('logistics')" class="w-full text-left p-2.5 hover:bg-cyan-50 rounded-lg text-xs font-medium text-slate-700 transition flex items-center space-x-2"><i data-lucide="truck" class="w-3.5 h-3.5 text-cyan-600"></i><span>Gestion Logistique</span></button>
+                            <button onclick="switchTab('logistics-bl')" class="w-full text-left p-2.5 hover:bg-cyan-50 rounded-lg text-xs font-medium text-slate-700 transition flex items-center space-x-2"><i data-lucide="file-text" class="w-3.5 h-3.5 text-cyan-600"></i><span>Bons de Livraison</span></button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Catégorie : Analyses & Rapports -->
                 <div class="accordion-item border border-slate-200 rounded-lg overflow-hidden">
                     <button class="accordion-header w-full flex items-center justify-between p-3 bg-amber-50 hover:bg-amber-100 text-left transition" onclick="toggleAccordion(this)">
@@ -660,6 +670,125 @@ document.addEventListener('DOMContentLoaded',updateNetworkStatus);
                 </div>
 
             </div>
+        </div>
+    </div>
+</section>
+
+<!-- LOGISTIQUE & TRANSPORT (NOUVEAU) -->
+<section id="sec-logistics" class="tab-content hidden space-y-5">
+    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-3">
+        <div>
+            <h2 class="font-bold text-base text-slate-800 flex items-center space-x-2"><i data-lucide="truck" class="w-5 h-5 text-cyan-600"></i><span>Gestion Logistique & Transport</span></h2>
+            <p class="text-xs text-slate-500">Suivi des transports, coûts et bons de livraison</p>
+        </div>
+        <button onclick="openAddLogisticsModal()" class="bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center space-x-1.5 shadow-sm transition">
+            <i data-lucide="plus" class="w-4 h-4"></i><span>Nouveau Transport</span>
+        </button>
+    </div>
+
+    <!-- KPIs Logistiques -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-1">
+            <div class="flex justify-between items-center text-slate-400"><span class="text-[11px] font-bold uppercase">Transports actifs</span><i data-lucide="truck" class="w-5 h-5 text-cyan-600"></i></div>
+            <h3 id="logi-active-count" class="text-xl font-black text-slate-900 font-mono">0</h3>
+            <p class="text-[10px] text-slate-500">En transit / En attente</p>
+        </div>
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-1">
+            <div class="flex justify-between items-center text-slate-400"><span class="text-[11px] font-bold uppercase">Coût transport total</span><i data-lucide="banknote" class="w-5 h-5 text-amber-600"></i></div>
+            <h3 id="logi-total-cost" class="text-xl font-black text-slate-900 font-mono">0 Ar</h3>
+            <p class="text-[10px] text-slate-500">Tous transports confondus</p>
+        </div>
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-1">
+            <div class="flex justify-between items-center text-slate-400"><span class="text-[11px] font-bold uppercase">Livrés</span><i data-lucide="check-circle" class="w-5 h-5 text-emerald-600"></i></div>
+            <h3 id="logi-delivered-count" class="text-xl font-black text-emerald-600 font-mono">0</h3>
+            <p class="text-[10px] text-slate-500">POD reçus</p>
+        </div>
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-1">
+            <div class="flex justify-between items-center text-slate-400"><span class="text-[11px] font-bold uppercase">Litiges</span><i data-lucide="alert-triangle" class="w-5 h-5 text-red-600"></i></div>
+            <h3 id="logi-dispute-count" class="text-xl font-black text-red-600 font-mono">0</h3>
+            <p class="text-[10px] text-slate-500">En cours de résolution</p>
+        </div>
+    </div>
+
+    <!-- Filtres -->
+    <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex flex-col sm:flex-row gap-2">
+        <input type="text" id="logistics-search" oninput="renderLogisticsTable()" placeholder="Rechercher par transporteur, immatriculation, trajet..." class="flex-grow border border-slate-300 rounded-lg px-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500">
+        <select id="logistics-status-filter" onchange="renderLogisticsTable()" class="border border-slate-300 rounded-lg px-3 py-1.5 text-xs bg-white">
+            <option value="ALL">Tous les statuts</option>
+            <option value="En transit">En transit</option>
+            <option value="Livré">Livré</option>
+            <option value="En attente">En attente</option>
+            <option value="Litige">Litige</option>
+        </select>
+        <select id="logistics-type-filter" onchange="renderLogisticsTable()" class="border border-slate-300 rounded-lg px-3 py-1.5 text-xs bg-white">
+            <option value="ALL">Tous les types</option>
+            <option value="Maritime">Maritime</option>
+            <option value="Terrestre">Terrestre</option>
+            <option value="Ferroviaire">Ferroviaire</option>
+            <option value="Aérien">Aérien</option>
+            <option value="Autre">Autre</option>
+        </select>
+    </div>
+
+    <!-- Tableau Logistique -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-slate-800 text-white uppercase text-[10px] tracking-wider">
+                    <tr>
+                        <th class="p-3">Date</th>
+                        <th class="p-3">Type</th>
+                        <th class="p-3">Transporteur</th>
+                        <th class="p-3">Immatriculation</th>
+                        <th class="p-3">Trajet</th>
+                        <th class="p-3">Motif</th>
+                        <th class="p-3 text-right">Coût TTC</th>
+                        <th class="p-3 text-center">POD</th>
+                        <th class="p-3 text-center">Statut</th>
+                        <th class="p-3 text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="logistics-table-body" class="divide-y divide-slate-100">
+                    <tr><td colspan="10" class="p-4 text-center text-slate-400">Aucun transport enregistré.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<!-- BONS DE LIVRAISON (NOUVEAU) -->
+<section id="sec-logistics-bl" class="tab-content hidden space-y-5">
+    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-3">
+        <div>
+            <h2 class="font-bold text-base text-slate-800 flex items-center space-x-2"><i data-lucide="file-text" class="w-5 h-5 text-cyan-600"></i><span>Bons de Livraison (BL)</span></h2>
+            <p class="text-xs text-slate-500">Historique et impression des bons de livraison</p>
+        </div>
+        <div class="flex items-center gap-2">
+            <input type="date" id="bl-date-filter" onchange="renderBLTable()" class="border border-slate-300 rounded-lg px-3 py-1.5 text-xs bg-white">
+            <button onclick="exportBLExcel()" class="bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center space-x-1.5">
+                <i data-lucide="file-spreadsheet" class="w-4 h-4"></i><span>Exporter</span>
+            </button>
+        </div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-slate-800 text-white uppercase text-[10px]">
+                    <tr>
+                        <th class="p-3">N° BL</th>
+                        <th class="p-3">Date</th>
+                        <th class="p-3">Transporteur</th>
+                        <th class="p-3">Immatriculation</th>
+                        <th class="p-3">Trajet</th>
+                        <th class="p-3 text-right">Coût TTC</th>
+                        <th class="p-3 text-center">POD</th>
+                        <th class="p-3 text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="bl-table-body" class="divide-y divide-slate-100">
+                    <tr><td colspan="8" class="p-4 text-center text-slate-400">Aucun bon de livraison.</td></tr>
+                </tbody>
+            </table>
         </div>
     </div>
 </section>
@@ -746,110 +875,111 @@ document.addEventListener('DOMContentLoaded',updateNetworkStatus);
 
 <!-- PARAMETRES (Accessible uniquement via Back Office) -->
 <section id="sec-settings" class="tab-content hidden space-y-5">
-<div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 space-y-4">
-<h2 class="font-bold text-base text-slate-800 flex items-center space-x-2 border-b pb-3"><i data-lucide="settings" class="w-5 h-5 text-blue-600"></i><span>Paramètres Généraux</span></h2>
-<form onsubmit="saveSettings(event)" class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-<div><label class="font-bold text-slate-600">Nom du Magasin</label><input type="text" id="set-shop-name" class="w-full mt-1 border border-slate-300 p-2.5 rounded-lg font-semibold" required></div>
-<div><label class="font-bold text-slate-600">Adresse</label><input type="text" id="set-shop-address" class="w-full mt-1 border border-slate-300 p-2.5 rounded-lg" required></div>
-<div><label class="font-bold text-slate-600">Téléphone</label><input type="text" id="set-shop-phone" class="w-full mt-1 border border-slate-300 p-2.5 rounded-lg" required></div>
-<div><label class="font-bold text-slate-600">Taux de TVA (%)</label><input type="number" id="set-tva-rate" step="1" min="0" max="100" class="w-full mt-1 border border-slate-300 p-2.5 rounded-lg" required></div>
-<div class="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
-<label class="font-bold text-slate-600">Logo de l'entreprise</label>
-<input id="setting-logo-file" type="file" accept="image/*" class="w-full text-xs">
-<p class="text-[10px] text-slate-500">Compression auto (512px, &lt;800 Ko).</p>
-<div class="flex items-center gap-2">
-<button type="button" onclick="saveCompanyLogo()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold">Enregistrer</button>
-<button type="button" onclick="removeCompanyLogo()" class="bg-white border border-slate-300 px-3 py-1.5 rounded-lg text-xs font-semibold">Supprimer</button>
-</div>
-</div>
-<div>
-<label class="font-bold text-slate-600">NIF</label><input type="text" id="set-nif" maxlength="50" class="w-full mt-1 border border-slate-300 p-2.5 rounded-lg" autocomplete="off">
-</div>
-<div>
-<label class="font-bold text-slate-600">STAT</label><input type="text" id="set-stat" maxlength="50" class="w-full mt-1 border border-slate-300 p-2.5 rounded-lg" autocomplete="off">
-</div>
-<div class="sm:col-span-2 pt-2 flex justify-end"><button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2.5 rounded-xl transition shadow-sm">Enregistrer les Paramètres</button></div>
-</form>
-</div>
+    <!-- Paramètres Généraux -->
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 space-y-4">
+        <h2 class="font-bold text-base text-slate-800 flex items-center space-x-2 border-b pb-3"><i data-lucide="settings" class="w-5 h-5 text-blue-600"></i><span>Paramètres Généraux</span></h2>
+        <form onsubmit="saveSettings(event)" class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+            <div><label class="font-bold text-slate-600">Nom du Magasin</label><input type="text" id="set-shop-name" class="w-full mt-1 border border-slate-300 p-2.5 rounded-lg font-semibold" required></div>
+            <div><label class="font-bold text-slate-600">Adresse</label><input type="text" id="set-shop-address" class="w-full mt-1 border border-slate-300 p-2.5 rounded-lg" required></div>
+            <div><label class="font-bold text-slate-600">Téléphone</label><input type="text" id="set-shop-phone" class="w-full mt-1 border border-slate-300 p-2.5 rounded-lg" required></div>
+            <div><label class="font-bold text-slate-600">Taux de TVA (%)</label><input type="number" id="set-tva-rate" step="1" min="0" max="100" class="w-full mt-1 border border-slate-300 p-2.5 rounded-lg" required></div>
+            <div class="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
+                <label class="font-bold text-slate-600">Logo de l'entreprise</label>
+                <input id="setting-logo-file" type="file" accept="image/*" class="w-full text-xs">
+                <p class="text-[10px] text-slate-500">Compression auto (512px, &lt;800 Ko).</p>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="saveCompanyLogo()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold">Enregistrer</button>
+                    <button type="button" onclick="removeCompanyLogo()" class="bg-white border border-slate-300 px-3 py-1.5 rounded-lg text-xs font-semibold">Supprimer</button>
+                </div>
+            </div>
+            <div>
+                <label class="font-bold text-slate-600">NIF</label><input type="text" id="set-nif" maxlength="50" class="w-full mt-1 border border-slate-300 p-2.5 rounded-lg" autocomplete="off">
+            </div>
+            <div>
+                <label class="font-bold text-slate-600">STAT</label><input type="text" id="set-stat" maxlength="50" class="w-full mt-1 border border-slate-300 p-2.5 rounded-lg" autocomplete="off">
+            </div>
+            <div class="sm:col-span-2 pt-2 flex justify-end"><button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2.5 rounded-xl transition shadow-sm">Enregistrer les Paramètres</button></div>
+        </form>
+    </div>
 
-<!-- PALETTE EXCEL -->
-<div class="bg-white p-5 rounded-xl shadow-sm border border-purple-200 space-y-4">
-<h2 class="font-bold text-base text-slate-800 flex items-center space-x-2 border-b pb-3"><i data-lucide="palette" class="w-5 h-5 text-purple-600"></i><span>Préférences de Couleur — Exports Excel</span></h2>
-<p class="text-xs text-slate-500">Personnalisez les couleurs des rapports Excel exportés.</p>
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
-<div class="grid grid-cols-2 gap-3 text-xs">
-<div><label class="font-bold text-slate-600 block mb-1">Couleur principale</label><input type="color" id="excel-primary" class="w-full h-10 border border-slate-300 rounded-lg cursor-pointer"></div>
-<div><label class="font-bold text-slate-600 block mb-1">Couleur secondaire (KPI)</label><input type="color" id="excel-secondary" class="w-full h-10 border border-slate-300 rounded-lg cursor-pointer"></div>
-<div><label class="font-bold text-slate-600 block mb-1">Accent (étiquettes)</label><input type="color" id="excel-accent" class="w-full h-10 border border-slate-300 rounded-lg cursor-pointer"></div>
-<div><label class="font-bold text-slate-600 block mb-1">Sous-titre (texte)</label><input type="color" id="excel-subtitle" class="w-full h-10 border border-slate-300 rounded-lg cursor-pointer"></div>
-<div><label class="font-bold text-slate-600 block mb-1">Sous-titre (fond)</label><input type="color" id="excel-subtitle-bg" class="w-full h-10 border border-slate-300 rounded-lg cursor-pointer"></div>
-<div><label class="font-bold text-slate-600 block mb-1">Danger (alertes)</label><input type="color" id="excel-danger" class="w-full h-10 border border-slate-300 rounded-lg cursor-pointer"></div>
-<div><label class="font-bold text-slate-600 block mb-1">Danger (fond)</label><input type="color" id="excel-danger-bg" class="w-full h-10 border border-slate-300 rounded-lg cursor-pointer"></div>
-<div><label class="font-bold text-slate-600 block mb-1">Succès (OK)</label><input type="color" id="excel-success" class="w-full h-10 border border-slate-300 rounded-lg cursor-pointer"></div>
-<div><label class="font-bold text-slate-600 block mb-1">Succès (fond)</label><input type="color" id="excel-success-bg" class="w-full h-10 border border-slate-300 rounded-lg cursor-pointer"></div>
-<div><label class="font-bold text-slate-600 block mb-1">Ligne alternée</label><input type="color" id="excel-neutral" class="w-full h-10 border border-slate-300 rounded-lg cursor-pointer"></div>
-</div>
-<div class="border border-slate-300 rounded-lg p-3 bg-slate-50">
-<p class="text-[10px] uppercase font-bold text-slate-500 mb-2">Aperçu</p>
-<div class="space-y-2 text-[10px]">
-<div id="preview-title" class="text-center font-bold py-2 rounded text-white">KAJY — RAPPORT</div>
-<div id="preview-subtitle" class="text-center font-bold py-1 rounded">Sous-titre</div>
-<div class="grid grid-cols-2 gap-2">
-<div id="preview-kpi-label" class="text-center font-bold py-1 rounded text-white">Articles</div>
-<div id="preview-kpi-value" class="text-center font-bold py-1 rounded">42</div>
-</div>
-<table class="w-full text-[9px] border border-slate-300">
-<thead><tr id="preview-table-head" class="text-white"><th class="p-1">Col A</th><th class="p-1">Col B</th></tr></thead>
-<tbody><tr id="preview-row-1"><td class="p-1 border">L1</td><td class="p-1 border">123</td></tr>
-<tr id="preview-row-2"><td class="p-1 border">L2</td><td class="p-1 border">456</td></tr></tbody>
-</table>
-</div>
-</div>
-</div>
-<div class="flex flex-wrap gap-2 pt-2">
-<button type="button" onclick="saveExcelColors()" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-xs font-bold">Enregistrer les couleurs</button>
-<button type="button" onclick="resetExcelColors()" class="bg-slate-200 hover:bg-slate-300 text-slate-800 px-4 py-2 rounded-lg text-xs font-bold">Réinitialiser</button>
-<button type="button" onclick="exportStockExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-xs font-bold">Tester sur Export Stock</button>
-</div>
-</div>
+    <!-- SAUVEGARDE AUTO (DÉPLACÉ ICI) -->
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-amber-200 space-y-4">
+        <h2 class="font-bold text-base text-slate-800 flex items-center space-x-2 border-b pb-3"><i data-lucide="save" class="w-5 h-5 text-amber-600"></i><span>Sauvegarde Automatique Locale</span></h2>
+        <p class="text-xs text-slate-500">Instantané complet toutes les 5 minutes + démarrage + fermeture. Les 3 dernières sont conservées.</p>
+        <p id="auto-backup-indicator" class="text-xs font-semibold text-amber-700">💾 Aucune sauvegarde auto</p>
+        <div class="flex flex-wrap gap-3 pt-2">
+            <button onclick="autoBackupNow('manuelle')" class="bg-amber-600 hover:bg-amber-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center space-x-2"><i data-lucide="save" class="w-4 h-4"></i><span>Créer maintenant</span></button>
+            <button onclick="restoreFromAutoBackup(0)" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center space-x-2"><i data-lucide="history" class="w-4 h-4"></i><span>Restaurer</span></button>
+            <button onclick="showAutoBackupsList()" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center space-x-2"><i data-lucide="list" class="w-4 h-4"></i><span>Voir</span></button>
+            <button onclick="clearAutoBackups()" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold px-4 py-2.5 rounded-xl text-xs flex items-center space-x-2"><i data-lucide="trash" class="w-4 h-4"></i><span>Purger</span></button>
+        </div>
+    </div>
 
-<!-- SAUVEGARDE AUTO -->
-<div class="bg-white p-5 rounded-xl shadow-sm border border-amber-200 space-y-4">
-<h2 class="font-bold text-base text-slate-800 flex items-center space-x-2 border-b pb-3"><i data-lucide="save" class="w-5 h-5 text-amber-600"></i><span>Sauvegarde Automatique Locale</span></h2>
-<p class="text-xs text-slate-500">Instantané complet toutes les 5 minutes + démarrage + fermeture. Les 3 dernières sont conservées.</p>
-<p id="auto-backup-indicator" class="text-xs font-semibold text-amber-700">💾 Aucune sauvegarde auto</p>
-<div class="flex flex-wrap gap-3 pt-2">
-<button onclick="autoBackupNow('manuelle')" class="bg-amber-600 hover:bg-amber-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center space-x-2"><i data-lucide="save" class="w-4 h-4"></i><span>Créer maintenant</span></button>
-<button onclick="restoreFromAutoBackup(0)" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center space-x-2"><i data-lucide="history" class="w-4 h-4"></i><span>Restaurer</span></button>
-<button onclick="showAutoBackupsList()" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center space-x-2"><i data-lucide="list" class="w-4 h-4"></i><span>Voir</span></button>
-<button onclick="clearAutoBackups()" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold px-4 py-2.5 rounded-xl text-xs flex items-center space-x-2"><i data-lucide="trash" class="w-4 h-4"></i><span>Purger</span></button>
-</div>
-</div>
+    <!-- PALETTE EXCEL -->
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-purple-200 space-y-4">
+        <h2 class="font-bold text-base text-slate-800 flex items-center space-x-2 border-b pb-3"><i data-lucide="palette" class="w-5 h-5 text-purple-600"></i><span>Préférences de Couleur — Exports Excel</span></h2>
+        <p class="text-xs text-slate-500">Personnalisez les couleurs des rapports Excel exportés.</p>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <div class="grid grid-cols-2 gap-3 text-xs">
+                <div><label class="font-bold text-slate-600 block mb-1">Couleur principale</label><input type="color" id="excel-primary" class="w-full h-10 border border-slate-300 rounded-lg cursor-pointer"></div>
+                <div><label class="font-bold text-slate-600 block mb-1">Couleur secondaire (KPI)</label><input type="color" id="excel-secondary" class="w-full h-10 border border-slate-300 rounded-lg cursor-pointer"></div>
+                <div><label class="font-bold text-slate-600 block mb-1">Accent (étiquettes)</label><input type="color" id="excel-accent" class="w-full h-10 border border-slate-300 rounded-lg cursor-pointer"></div>
+                <div><label class="font-bold text-slate-600 block mb-1">Sous-titre (texte)</label><input type="color" id="excel-subtitle" class="w-full h-10 border border-slate-300 rounded-lg cursor-pointer"></div>
+                <div><label class="font-bold text-slate-600 block mb-1">Sous-titre (fond)</label><input type="color" id="excel-subtitle-bg" class="w-full h-10 border border-slate-300 rounded-lg cursor-pointer"></div>
+                <div><label class="font-bold text-slate-600 block mb-1">Danger (alertes)</label><input type="color" id="excel-danger" class="w-full h-10 border border-slate-300 rounded-lg cursor-pointer"></div>
+                <div><label class="font-bold text-slate-600 block mb-1">Danger (fond)</label><input type="color" id="excel-danger-bg" class="w-full h-10 border border-slate-300 rounded-lg cursor-pointer"></div>
+                <div><label class="font-bold text-slate-600 block mb-1">Succès (OK)</label><input type="color" id="excel-success" class="w-full h-10 border border-slate-300 rounded-lg cursor-pointer"></div>
+                <div><label class="font-bold text-slate-600 block mb-1">Succès (fond)</label><input type="color" id="excel-success-bg" class="w-full h-10 border border-slate-300 rounded-lg cursor-pointer"></div>
+                <div><label class="font-bold text-slate-600 block mb-1">Ligne alternée</label><input type="color" id="excel-neutral" class="w-full h-10 border border-slate-300 rounded-lg cursor-pointer"></div>
+            </div>
+            <div class="border border-slate-300 rounded-lg p-3 bg-slate-50">
+                <p class="text-[10px] uppercase font-bold text-slate-500 mb-2">Aperçu</p>
+                <div class="space-y-2 text-[10px]">
+                    <div id="preview-title" class="text-center font-bold py-2 rounded text-white">KAJY — RAPPORT</div>
+                    <div id="preview-subtitle" class="text-center font-bold py-1 rounded">Sous-titre</div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div id="preview-kpi-label" class="text-center font-bold py-1 rounded text-white">Articles</div>
+                        <div id="preview-kpi-value" class="text-center font-bold py-1 rounded">42</div>
+                    </div>
+                    <table class="w-full text-[9px] border border-slate-300">
+                        <thead><tr id="preview-table-head" class="text-white"><th class="p-1">Col A</th><th class="p-1">Col B</th></tr></thead>
+                        <tbody><tr id="preview-row-1"><td class="p-1 border">L1</td><td class="p-1 border">123</td></tr>
+                        <tr id="preview-row-2"><td class="p-1 border">L2</td><td class="p-1 border">456</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="flex flex-wrap gap-2 pt-2">
+            <button type="button" onclick="saveExcelColors()" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-xs font-bold">Enregistrer les couleurs</button>
+            <button type="button" onclick="resetExcelColors()" class="bg-slate-200 hover:bg-slate-300 text-slate-800 px-4 py-2 rounded-lg text-xs font-bold">Réinitialiser</button>
+            <button type="button" onclick="exportStockExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-xs font-bold">Tester sur Export Stock</button>
+        </div>
+    </div>
 
-<!-- MAINTENANCE -->
-<div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 space-y-4">
-<h2 class="font-bold text-base text-slate-800 flex items-center space-x-2 border-b pb-3"><i data-lucide="database" class="w-5 h-5 text-emerald-600"></i><span>Maintenance, Sauvegarde & Réseau</span></h2>
-<div class="flex flex-wrap gap-3 pt-2">
-<button onclick="exportDatabaseBackup()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center space-x-2"><i data-lucide="download" class="w-4 h-4"></i><span>Télécharger JSON</span></button>
-<label class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center space-x-2 cursor-pointer">
-<i data-lucide="upload" class="w-4 h-4"></i><span>Restaurer JSON</span>
-<input type="file" id="import-file" accept=".json" onchange="importDatabaseBackup(event)" class="hidden">
-</label>
-<button onclick="resetSystemData()" class="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center space-x-2"><i data-lucide="trash-2" class="w-4 h-4"></i><span>Réinitialiser</span></button>
-</div>
-</div>
+    <!-- MAINTENANCE -->
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 space-y-4">
+        <h2 class="font-bold text-base text-slate-800 flex items-center space-x-2 border-b pb-3"><i data-lucide="database" class="w-5 h-5 text-emerald-600"></i><span>Maintenance, Sauvegarde & Réseau</span></h2>
+        <div class="flex flex-wrap gap-3 pt-2">
+            <button onclick="exportDatabaseBackup()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center space-x-2"><i data-lucide="download" class="w-4 h-4"></i><span>Télécharger JSON</span></button>
+            <label class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center space-x-2 cursor-pointer">
+                <i data-lucide="upload" class="w-4 h-4"></i><span>Restaurer JSON</span>
+                <input type="file" id="import-file" accept=".json" onchange="importDatabaseBackup(event)" class="hidden">
+            </label>
+            <button onclick="resetSystemData()" class="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center space-x-2"><i data-lucide="trash-2" class="w-4 h-4"></i><span>Réinitialiser</span></button>
+        </div>
+    </div>
 
-<!-- NETTOYAGE ADMIN -->
-<div class="bg-white p-5 rounded-xl shadow-sm border border-red-200 space-y-4 admin-only">
-<div><h2 class="font-bold text-base text-red-700 flex items-center space-x-2"><i data-lucide="eraser" class="w-5 h-5"></i><span>Nettoyage commercial</span></h2>
-<p class="text-xs text-slate-500 mt-1">Réservé à l'Administrateur.</p></div>
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-<button onclick="adminClearStockData()" class="bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 font-bold px-4 py-3 rounded-xl text-xs text-left"><span class="block">Vider Stock</span><span class="block text-[10px] font-normal mt-1">Quantités à 0</span></button>
-<button onclick="adminClearSalesData()" class="bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 font-bold px-4 py-3 rounded-xl text-xs text-left"><span class="block">Vider Ventes</span><span class="block text-[10px] font-normal mt-1">Supprimer journal</span></button>
-<button onclick="adminClearMovementsData()" class="bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 font-bold px-4 py-3 rounded-xl text-xs text-left"><span class="block">Vider Mouvements</span><span class="block text-[10px] font-normal mt-1">Entrées/sorties</span></button>
-<button onclick="adminClearCommercialData()" class="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-3 rounded-xl text-xs text-left shadow-sm"><span class="block">Tout vider</span><span class="block text-[10px] font-normal mt-1 text-red-100">Stock + ventes + mvt</span></button>
-</div>
-</div>
+    <!-- NETTOYAGE ADMIN -->
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-red-200 space-y-4 admin-only">
+        <div><h2 class="font-bold text-base text-red-700 flex items-center space-x-2"><i data-lucide="eraser" class="w-5 h-5"></i><span>Nettoyage commercial</span></h2>
+        <p class="text-xs text-slate-500 mt-1">Réservé à l'Administrateur.</p></div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <button onclick="adminClearStockData()" class="bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 font-bold px-4 py-3 rounded-xl text-xs text-left"><span class="block">Vider Stock</span><span class="block text-[10px] font-normal mt-1">Quantités à 0</span></button>
+            <button onclick="adminClearSalesData()" class="bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 font-bold px-4 py-3 rounded-xl text-xs text-left"><span class="block">Vider Ventes</span><span class="block text-[10px] font-normal mt-1">Supprimer journal</span></button>
+            <button onclick="adminClearMovementsData()" class="bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 font-bold px-4 py-3 rounded-xl text-xs text-left"><span class="block">Vider Mouvements</span><span class="block text-[10px] font-normal mt-1">Entrées/sorties</span></button>
+            <button onclick="adminClearCommercialData()" class="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-3 rounded-xl text-xs text-left shadow-sm"><span class="block">Tout vider</span><span class="block text-[10px] font-normal mt-1 text-red-100">Stock + ventes + mvt</span></button>
+        </div>
+    </div>
 </section>
 
 </main>
@@ -946,7 +1076,7 @@ document.addEventListener('DOMContentLoaded',updateNetworkStatus);
 
 <!-- MODAL AJOUT PRODUIT -->
 <div id="add-product-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
-<div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-5 space-y-4">
+<div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-5 space-y-4 max-h-[90vh] overflow-y-auto custom-scrollbar">
 <div class="flex justify-between items-center border-b pb-2">
 <h3 class="font-bold text-sm text-slate-800">Ajouter un Article</h3>
 <button onclick="closeAddProductModal()" class="text-slate-400"><i data-lucide="x" class="w-4 h-4"></i></button>
@@ -963,11 +1093,233 @@ document.addEventListener('DOMContentLoaded',updateNetworkStatus);
 <div><label class="font-semibold text-slate-600">Prix Achat HT</label><input type="number" id="new-cost" step="100" required class="w-full mt-1 border border-slate-300 p-2 rounded-lg"></div>
 <div><label class="font-semibold text-slate-600">Prix Vente TTC</label><input type="number" id="new-price" step="100" required class="w-full mt-1 border border-slate-300 p-2 rounded-lg"></div>
 </div>
+<!-- Logistics toggle -->
+<div class="bg-cyan-50 border border-cyan-200 rounded-lg p-3 space-y-2">
+<label class="flex items-center gap-2 cursor-pointer">
+<input type="checkbox" id="new-logistics-toggle" onchange="toggleNewLogisticsFields()" class="w-4 h-4 rounded border-cyan-400 text-cyan-600 focus:ring-cyan-500">
+<span class="font-bold text-cyan-800 text-[11px]">Option Transport</span>
+</label>
+<div id="new-logistics-fields" class="hidden space-y-2 pt-1 border-t border-cyan-200">
+<div class="grid grid-cols-2 gap-2">
+<div><label class="font-semibold text-slate-600 text-[10px]">Type de transport</label>
+<select id="new-logi-type" onchange="toggleNewLogiTypeCustom()" class="w-full mt-1 border border-slate-300 p-1.5 rounded-lg bg-white text-[11px]">
+<option value="Maritime">Maritime</option><option value="Terrestre">Terrestre</option><option value="Ferroviaire">Ferroviaire</option><option value="Aérien">Aérien</option><option value="Autre">Autre</option>
+</select></div>
+<div id="new-logi-custom-wrapper" class="hidden"><label class="font-semibold text-slate-600 text-[10px]">Préciser le type</label>
+<input type="text" id="new-logi-custom" class="w-full mt-1 border border-slate-300 p-1.5 rounded-lg text-[11px]" placeholder="Ex: Transport fluvial"></div>
+</div>
+<div class="grid grid-cols-2 gap-2">
+<div><label class="font-semibold text-slate-600 text-[10px]">Transporteur</label>
+<input type="text" id="new-logi-carrier" class="w-full mt-1 border border-slate-300 p-1.5 rounded-lg text-[11px]" placeholder="Nom compagnie"></div>
+<div><label class="font-semibold text-slate-600 text-[10px]">Contact</label>
+<input type="text" id="new-logi-contact" class="w-full mt-1 border border-slate-300 p-1.5 rounded-lg text-[11px]" placeholder="Personne / N°"></div>
+</div>
+<div class="grid grid-cols-2 gap-2">
+<div><label class="font-semibold text-slate-600 text-[10px]">Immatriculation</label>
+<input type="text" id="new-logi-registration" class="w-full mt-1 border border-slate-300 p-1.5 rounded-lg text-[11px]" placeholder="N° conteneur, plaque, vol..."></div>
+<div><label class="font-semibold text-slate-600 text-[10px]">Trajet</label>
+<input type="text" id="new-logi-route" class="w-full mt-1 border border-slate-300 p-1.5 rounded-lg text-[11px]" placeholder="Origine - Destination"></div>
+</div>
+<div class="grid grid-cols-2 gap-2">
+<div><label class="font-semibold text-slate-600 text-[10px]">Coût transport TTC (Ar)</label>
+<input type="number" id="new-logi-cost" step="100" class="w-full mt-1 border border-slate-300 p-1.5 rounded-lg text-[11px] font-bold" placeholder="0"></div>
+<div><label class="font-semibold text-slate-600 text-[10px]">Statut</label>
+<select id="new-logi-status" class="w-full mt-1 border border-slate-300 p-1.5 rounded-lg bg-white text-[11px]">
+<option value="En transit">En transit</option><option value="Livré">Livré</option><option value="En attente">En attente</option><option value="Litige">Litige</option>
+</select></div>
+</div>
+<div><label class="font-semibold text-slate-600 text-[10px]">Motif du transport</label>
+<textarea id="new-logi-reason" rows="2" class="w-full mt-1 border border-slate-300 p-1.5 rounded-lg text-[11px]" placeholder="Ex: Réapprovisionnement, Transfert inter-dépôt, Retour fournisseur, Importation..."></textarea></div>
+<div class="flex items-center gap-2">
+<input type="checkbox" id="new-logi-pod" class="w-4 h-4 rounded border-cyan-400 text-cyan-600 focus:ring-cyan-500">
+<label for="new-logi-pod" class="font-semibold text-cyan-800 text-[11px]">POD reçu ?</label>
+</div>
+</div>
+</div>
 <div class="flex gap-2 pt-2">
 <button type="submit" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-xl">Enregistrer</button>
 <button type="button" onclick="closeAddProductModal()" class="flex-1 bg-slate-200 text-slate-800 font-bold py-2 rounded-xl">Annuler</button>
 </div>
 </form>
+</div>
+</div>
+
+<!-- MODAL MODIFICATION PRODUIT -->
+<div id="edit-product-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+<div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-5 space-y-4 max-h-[90vh] overflow-y-auto custom-scrollbar">
+<div class="flex justify-between items-center border-b pb-2">
+<h3 class="font-bold text-sm text-slate-800">Modifier l'article</h3>
+<button onclick="closeEditProductModal()" class="text-slate-400 hover:text-slate-700"><i data-lucide="x" class="w-4 h-4"></i></button>
+</div>
+<form onsubmit="saveEditedProduct(event)" class="space-y-3 text-xs">
+<input type="hidden" id="edit-product-id">
+<div><label class="font-semibold text-slate-600">SKU / Code-barre</label><input type="text" id="edit-sku" required class="w-full mt-1 border border-slate-300 p-2 rounded-lg"></div>
+<div><label class="font-semibold text-slate-600">Désignation</label><input type="text" id="edit-name" required class="w-full mt-1 border border-slate-300 p-2 rounded-lg"></div>
+<div class="grid grid-cols-2 gap-2">
+<div><label class="font-semibold text-slate-600">Catégorie</label><select id="edit-cat" class="w-full mt-1 border border-slate-300 p-2 rounded-lg bg-white"></select></div>
+<div><label class="font-semibold text-slate-600">Stock</label><input type="number" id="edit-stock" required min="0" step="1" class="w-full mt-1 border border-slate-300 p-2 rounded-lg"></div>
+</div>
+<div class="grid grid-cols-2 gap-2">
+<div><label class="font-semibold text-slate-600">Prix Achat HT</label><input type="number" id="edit-cost" step="100" min="0" required class="w-full mt-1 border border-slate-300 p-2 rounded-lg"></div>
+<div><label class="font-semibold text-slate-600">Prix Vente TTC</label><input type="number" id="edit-price" step="100" min="0" required class="w-full mt-1 border border-slate-300 p-2 rounded-lg"></div>
+</div>
+<div><label class="font-semibold text-slate-600">Seuil d'alerte</label><input type="number" id="edit-alert" min="0" step="1" required class="w-full mt-1 border border-slate-300 p-2 rounded-lg"></div>
+<!-- Logistics toggle for edit -->
+<div class="bg-cyan-50 border border-cyan-200 rounded-lg p-3 space-y-2">
+<label class="flex items-center gap-2 cursor-pointer">
+<input type="checkbox" id="edit-logistics-toggle" onchange="toggleEditLogisticsFields()" class="w-4 h-4 rounded border-cyan-400 text-cyan-600 focus:ring-cyan-500">
+<span class="font-bold text-cyan-800 text-[11px]">Option Transport</span>
+</label>
+<div id="edit-logistics-fields" class="hidden space-y-2 pt-1 border-t border-cyan-200">
+<div class="grid grid-cols-2 gap-2">
+<div><label class="font-semibold text-slate-600 text-[10px]">Type de transport</label>
+<select id="edit-logi-type" onchange="toggleEditLogiTypeCustom()" class="w-full mt-1 border border-slate-300 p-1.5 rounded-lg bg-white text-[11px]">
+<option value="Maritime">Maritime</option><option value="Terrestre">Terrestre</option><option value="Ferroviaire">Ferroviaire</option><option value="Aérien">Aérien</option><option value="Autre">Autre</option>
+</select></div>
+<div id="edit-logi-custom-wrapper" class="hidden"><label class="font-semibold text-slate-600 text-[10px]">Préciser le type</label>
+<input type="text" id="edit-logi-custom" class="w-full mt-1 border border-slate-300 p-1.5 rounded-lg text-[11px]" placeholder="Ex: Transport fluvial"></div>
+</div>
+<div class="grid grid-cols-2 gap-2">
+<div><label class="font-semibold text-slate-600 text-[10px]">Transporteur</label>
+<input type="text" id="edit-logi-carrier" class="w-full mt-1 border border-slate-300 p-1.5 rounded-lg text-[11px]" placeholder="Nom compagnie"></div>
+<div><label class="font-semibold text-slate-600 text-[10px]">Contact</label>
+<input type="text" id="edit-logi-contact" class="w-full mt-1 border border-slate-300 p-1.5 rounded-lg text-[11px]" placeholder="Personne / N°"></div>
+</div>
+<div class="grid grid-cols-2 gap-2">
+<div><label class="font-semibold text-slate-600 text-[10px]">Immatriculation</label>
+<input type="text" id="edit-logi-registration" class="w-full mt-1 border border-slate-300 p-1.5 rounded-lg text-[11px]" placeholder="N° conteneur, plaque, vol..."></div>
+<div><label class="font-semibold text-slate-600 text-[10px]">Trajet</label>
+<input type="text" id="edit-logi-route" class="w-full mt-1 border border-slate-300 p-1.5 rounded-lg text-[11px]" placeholder="Origine - Destination"></div>
+</div>
+<div class="grid grid-cols-2 gap-2">
+<div><label class="font-semibold text-slate-600 text-[10px]">Coût transport TTC (Ar)</label>
+<input type="number" id="edit-logi-cost" step="100" class="w-full mt-1 border border-slate-300 p-1.5 rounded-lg text-[11px] font-bold" placeholder="0"></div>
+<div><label class="font-semibold text-slate-600 text-[10px]">Statut</label>
+<select id="edit-logi-status" class="w-full mt-1 border border-slate-300 p-1.5 rounded-lg bg-white text-[11px]">
+<option value="En transit">En transit</option><option value="Livré">Livré</option><option value="En attente">En attente</option><option value="Litige">Litige</option>
+</select></div>
+</div>
+<div><label class="font-semibold text-slate-600 text-[10px]">Motif du transport</label>
+<textarea id="edit-logi-reason" rows="2" class="w-full mt-1 border border-slate-300 p-1.5 rounded-lg text-[11px]" placeholder="Ex: Réapprovisionnement, Transfert inter-dépôt, Retour fournisseur, Importation..."></textarea></div>
+<div class="flex items-center gap-2">
+<input type="checkbox" id="edit-logi-pod" class="w-4 h-4 rounded border-cyan-400 text-cyan-600 focus:ring-cyan-500">
+<label for="edit-logi-pod" class="font-semibold text-cyan-800 text-[11px]">POD reçu ?</label>
+</div>
+</div>
+</div>
+<div class="flex gap-2 pt-2">
+<button type="submit" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-xl">Enregistrer les modifications</button>
+<button type="button" onclick="closeEditProductModal()" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-2 rounded-xl">Annuler</button>
+</div>
+</form>
+</div>
+</div>
+
+<!-- MODAL LOGISTICS (NOUVEAU) -->
+<div id="logistics-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+<div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-5 space-y-4 max-h-[90vh] overflow-y-auto custom-scrollbar">
+<div class="flex justify-between items-center border-b pb-2">
+<h3 id="logistics-modal-title" class="font-bold text-sm text-slate-800">Nouveau Transport</h3>
+<button onclick="closeLogisticsModal()" class="text-slate-400 hover:text-slate-700"><i data-lucide="x" class="w-4 h-4"></i></button>
+</div>
+<form onsubmit="saveLogistics(event)" class="space-y-3 text-xs">
+<input type="hidden" id="logi-edit-id">
+<div class="grid grid-cols-2 gap-2">
+<div><label class="font-semibold text-slate-600 text-[10px]">Type de transport</label>
+<select id="logi-type" onchange="toggleLogiTypeCustom()" class="w-full mt-1 border border-slate-300 p-2 rounded-lg bg-white text-[11px]">
+<option value="Maritime">Maritime</option><option value="Terrestre">Terrestre</option><option value="Ferroviaire">Ferroviaire</option><option value="Aérien">Aérien</option><option value="Autre">Autre</option>
+</select></div>
+<div id="logi-custom-wrapper" class="hidden"><label class="font-semibold text-slate-600 text-[10px]">Préciser le type</label>
+<input type="text" id="logi-custom" class="w-full mt-1 border border-slate-300 p-2 rounded-lg text-[11px]" placeholder="Ex: Transport fluvial"></div>
+</div>
+<div class="grid grid-cols-2 gap-2">
+<div><label class="font-semibold text-slate-600 text-[10px]">Transporteur</label>
+<input type="text" id="logi-carrier" class="w-full mt-1 border border-slate-300 p-2 rounded-lg text-[11px]" placeholder="Nom compagnie"></div>
+<div><label class="font-semibold text-slate-600 text-[10px]">Contact</label>
+<input type="text" id="logi-contact" class="w-full mt-1 border border-slate-300 p-2 rounded-lg text-[11px]" placeholder="Personne / N°"></div>
+</div>
+<div class="grid grid-cols-2 gap-2">
+<div><label class="font-semibold text-slate-600 text-[10px]">Immatriculation</label>
+<input type="text" id="logi-registration" class="w-full mt-1 border border-slate-300 p-2 rounded-lg text-[11px]" placeholder="N° conteneur, plaque, vol..."></div>
+<div><label class="font-semibold text-slate-600 text-[10px]">Trajet</label>
+<input type="text" id="logi-route" class="w-full mt-1 border border-slate-300 p-2 rounded-lg text-[11px]" placeholder="Origine - Destination"></div>
+</div>
+<div class="grid grid-cols-2 gap-2">
+<div><label class="font-semibold text-slate-600 text-[10px]">Coût transport TTC (Ar)</label>
+<input type="number" id="logi-cost" step="100" class="w-full mt-1 border border-slate-300 p-2 rounded-lg text-[11px] font-bold" placeholder="0"></div>
+<div><label class="font-semibold text-slate-600 text-[10px]">Statut</label>
+<select id="logi-status" class="w-full mt-1 border border-slate-300 p-2 rounded-lg bg-white text-[11px]">
+<option value="En transit">En transit</option><option value="Livré">Livré</option><option value="En attente">En attente</option><option value="Litige">Litige</option>
+</select></div>
+</div>
+<div><label class="font-semibold text-slate-600 text-[10px]">Motif du transport</label>
+<textarea id="logi-reason" rows="2" class="w-full mt-1 border border-slate-300 p-2 rounded-lg text-[11px]" placeholder="Ex: Réapprovisionnement, Transfert inter-dépôt, Retour fournisseur, Importation..."></textarea></div>
+<div class="flex items-center gap-2">
+<input type="checkbox" id="logi-pod" class="w-4 h-4 rounded border-cyan-400 text-cyan-600 focus:ring-cyan-500">
+<label for="logi-pod" class="font-semibold text-cyan-800 text-[11px]">POD reçu ?</label>
+</div>
+<div class="flex gap-2 pt-2">
+<button type="submit" class="flex-1 bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 rounded-xl">Enregistrer</button>
+<button type="button" onclick="closeLogisticsModal()" class="flex-1 bg-slate-200 text-slate-800 font-bold py-2 rounded-xl">Annuler</button>
+</div>
+</form>
+</div>
+</div>
+
+<!-- MODAL BL (BON DE LIVRAISON) -->
+<div id="bl-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+<div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto custom-scrollbar">
+<div class="flex justify-between items-center border-b pb-3">
+<h3 class="font-bold text-base text-slate-800 flex items-center space-x-2"><i data-lucide="file-text" class="w-5 h-5 text-cyan-600"></i><span>Bon de Livraison</span></h3>
+<button onclick="closeBLModal()" class="text-slate-400 hover:text-slate-700"><i data-lucide="x" class="w-5 h-5"></i></button>
+</div>
+<div id="printable-bl" class="border border-slate-300 rounded-xl p-5 bg-white space-y-4">
+<div class="text-center border-b pb-3">
+<h2 id="bl-shop-name" class="font-bold text-lg text-slate-900">KAJY EXPRESS & Stock Pro</h2>
+<p id="bl-shop-address" class="text-xs text-slate-500"></p>
+<p id="bl-shop-phone" class="text-xs text-slate-500"></p>
+</div>
+<div class="text-center">
+<h3 class="font-bold text-base text-cyan-700">BON DE LIVRAISON</h3>
+<p class="text-xs text-slate-500">N° <span id="bl-number" class="font-bold"></span></p>
+</div>
+<div class="grid grid-cols-2 gap-4 text-xs">
+<div class="space-y-1">
+<p><span class="font-bold text-slate-500">Date :</span> <span id="bl-date"></span></p>
+<p><span class="font-bold text-slate-500">Type :</span> <span id="bl-type"></span></p>
+<p><span class="font-bold text-slate-500">Transporteur :</span> <span id="bl-carrier"></span></p>
+<p><span class="font-bold text-slate-500">Contact :</span> <span id="bl-contact"></span></p>
+</div>
+<div class="space-y-1 text-right">
+<p><span class="font-bold text-slate-500">Immatriculation :</span> <span id="bl-registration"></span></p>
+<p><span class="font-bold text-slate-500">Trajet :</span> <span id="bl-route"></span></p>
+<p><span class="font-bold text-slate-500">Statut :</span> <span id="bl-status" class="logistics-badge"></span></p>
+<p><span class="font-bold text-slate-500">POD :</span> <span id="bl-pod"></span></p>
+</div>
+</div>
+<div class="border-t pt-2 text-xs">
+<p><span class="font-bold text-slate-500">Motif :</span> <span id="bl-reason"></span></p>
+<p class="mt-1"><span class="font-bold text-slate-500">Coût transport TTC :</span> <span id="bl-cost" class="font-mono font-bold"></span></p>
+</div>
+<div class="border-t pt-3 grid grid-cols-2 gap-4 text-xs">
+<div class="text-center">
+<p class="font-bold text-slate-500 mb-6">Signature Expéditeur</p>
+<div class="border-b border-dashed border-slate-300 h-8"></div>
+</div>
+<div class="text-center">
+<p class="font-bold text-slate-500 mb-6">Signature Destinataire</p>
+<div class="border-b border-dashed border-slate-300 h-8"></div>
+</div>
+</div>
+<div class="text-center text-[10px] text-slate-400 pt-2 border-t">
+<p>Document généré par KAJY EXPRESS & Stock Pro — <span id="bl-generated-date"></span></p>
+</div>
+</div>
+<div class="flex gap-2 pt-2">
+<button onclick="printBL()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center space-x-1.5"><i data-lucide="printer" class="w-4 h-4"></i><span>Imprimer BL</span></button>
+<button onclick="exportBLPDF()" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center space-x-1.5"><i data-lucide="file-text" class="w-4 h-4"></i><span>PDF</span></button>
+<button onclick="closeBLModal()" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-2 rounded-xl text-xs">Fermer</button>
+</div>
 </div>
 </div>
 
@@ -1041,16 +1393,16 @@ settings.syncEndpoint=typeof settings.syncEndpoint==='string'?settings.syncEndpo
 settings.excelColors=Object.assign({primary:"1F4E78",secondary:"D9EAF7",accent:"5B9BD5",subtitle:"17365D",subtitleBg:"D9EAF7",danger:"C00000",dangerBg:"FCE4D6",success:"548235",successBg:"E2F0D9",neutral:"F4F8FC",text:"1F1F1F"},settings.excelColors||{});
 
 let products=loadStorage('pos_products',[
-{id:'ART-001',sku:'3700101001',name:'Café Express Robusta 250g',cat:'Épicerie',cost:12500,price:22500,stock:85,alert:15},
-{id:'ART-002',sku:'3700101002',name:'Thé Vert Bio Menthe 100g',cat:'Épicerie',cost:15000,price:29000,stock:42,alert:10},
-{id:'ART-003',sku:'3700101003',name:'Eau Minérale 1.5L (Pack x6)',cat:'Boissons',cost:9000,price:16000,stock:120,alert:20},
-{id:'ART-004',sku:'3700101004',name:'Jus d\'Orange Pur Jus 1L',cat:'Boissons',cost:6000,price:12000,stock:8,alert:15},
-{id:'ART-005',sku:'3700101005',name:'Chocolat Noir 70% 100g',cat:'Confiserie',cost:5500,price:10500,stock:65,alert:10},
-{id:'ART-006',sku:'3700101006',name:'Biscuits Sablés Beurre 200g',cat:'Confiserie',cost:4500,price:9000,stock:5,alert:12},
-{id:'ART-007',sku:'3700101007',name:'Huile d\'Olive Vierge 75cl',cat:'Épicerie',cost:27500,price:49500,stock:30,alert:8},
-{id:'ART-008',sku:'3700101008',name:'Pâtes Penne Rigate 500g',cat:'Épicerie',cost:3000,price:6000,stock:150,alert:25},
-{id:'ART-009',sku:'3700101009',name:'Savon Liquide Mains 500ml',cat:'Hygiène',cost:7000,price:14500,stock:18,alert:10},
-{id:'ART-010',sku:'3700101010',name:'Gel Douche Premium 250ml',cat:'Hygiène',cost:9000,price:18000,stock:4,alert:10}
+{id:'ART-001',sku:'3700101001',name:'Café Express Robusta 250g',cat:'Épicerie',cost:12500,price:22500,transportTTC:0,stock:85,alert:15,logistics:null},
+{id:'ART-002',sku:'3700101002',name:'Thé Vert Bio Menthe 100g',cat:'Épicerie',cost:15000,price:29000,transportTTC:0,stock:42,alert:10,logistics:null},
+{id:'ART-003',sku:'3700101003',name:'Eau Minérale 1.5L (Pack x6)',cat:'Boissons',cost:9000,price:16000,transportTTC:0,stock:120,alert:20,logistics:null},
+{id:'ART-004',sku:'3700101004',name:'Jus d\'Orange Pur Jus 1L',cat:'Boissons',cost:6000,price:12000,transportTTC:0,stock:8,alert:15,logistics:null},
+{id:'ART-005',sku:'3700101005',name:'Chocolat Noir 70% 100g',cat:'Confiserie',cost:5500,price:10500,transportTTC:0,stock:65,alert:10,logistics:null},
+{id:'ART-006',sku:'3700101006',name:'Biscuits Sablés Beurre 200g',cat:'Confiserie',cost:4500,price:9000,transportTTC:0,stock:5,alert:12,logistics:null},
+{id:'ART-007',sku:'3700101007',name:'Huile d\'Olive Vierge 75cl',cat:'Épicerie',cost:27500,price:49500,transportTTC:0,stock:30,alert:8,logistics:null},
+{id:'ART-008',sku:'3700101008',name:'Pâtes Penne Rigate 500g',cat:'Épicerie',cost:3000,price:6000,transportTTC:0,stock:150,alert:25,logistics:null},
+{id:'ART-009',sku:'3700101009',name:'Savon Liquide Mains 500ml',cat:'Hygiène',cost:7000,price:14500,transportTTC:0,stock:18,alert:10,logistics:null},
+{id:'ART-010',sku:'3700101010',name:'Gel Douche Premium 250ml',cat:'Hygiène',cost:9000,price:18000,transportTTC:0,stock:4,alert:10,logistics:null}
 ]);
 
 let users=loadStorage('pos_users',[
@@ -1070,6 +1422,7 @@ let customers=loadStorage('pos_customers',[{id:'CLI-002',name:'Client profession
 let stockMovements=loadStorage('pos_stock_movements',[]);
 let auditLogs=loadStorage('pos_audit_logs',[]);
 let cashSession=loadStorage('pos_cash_session',null);
+let logisticsList=loadStorage('pos_logistics',[]);
 
 function normalizeData(){
   if(!Array.isArray(products))products=[];
@@ -1078,6 +1431,7 @@ function normalizeData(){
   if(!Array.isArray(customers))customers=[];
   if(!Array.isArray(stockMovements))stockMovements=[];
   if(!Array.isArray(auditLogs))auditLogs=[];
+  if(!Array.isArray(logisticsList))logisticsList=[];
   if(!settings||typeof settings!=='object')settings={};
   settings.shopName=String(settings.shopName||'SUPERMARCHÉ EXPRESS');
   settings.address=String(settings.address||'');
@@ -1085,6 +1439,12 @@ function normalizeData(){
   settings.nif=String(settings.nif||'');
   settings.stat=String(settings.stat||'');
   settings.tvaRate=Number.isFinite(Number(settings.tvaRate))?Number(settings.tvaRate):20;
+  // Normalize products with transportTTC and logistics
+  products=products.map(p=>({
+    ...p,
+    transportTTC:Number.isFinite(Number(p.transportTTC))?Number(p.transportTTC):0,
+    logistics:p.logistics&&typeof p.logistics==='object'?p.logistics:null
+  }));
 }
 
 function runDataMigration(){
@@ -1094,11 +1454,11 @@ function runDataMigration(){
   saveStorageRaw('pos_products',products);
   saveStorageRaw('pos_customers',customers);
   saveStorageRaw('pos_sales',sales);
-  localStorage.setItem('pos_schema_version','4.4');
+  localStorage.setItem('pos_schema_version','5.2');
 }
 
 /* ==== SAUVEGARDE AUTO ==== */
-function buildSnapshot(){return{app:'ExpressPOS',version:APP_VERSION,schema:4,savedAt:localDateTimeISO(),settings,products,users,sales,customers,stockMovements,auditLogs,cashSession};}
+function buildSnapshot(){return{app:'ExpressPOS',version:APP_VERSION,schema:5,savedAt:localDateTimeISO(),settings,products,users,sales,customers,stockMovements,auditLogs,cashSession,logisticsList};}
 function autoBackupNow(reason='automatique'){
   try{
     const snapshot=buildSnapshot();
@@ -1138,6 +1498,7 @@ function restoreFromAutoBackup(index=0){
     saveStorageRaw('pos_stock_movements',d.stockMovements||[]);
     saveStorageRaw('pos_audit_logs',d.auditLogs||[]);
     saveStorageRaw('pos_cash_session',d.cashSession||null);
+    saveStorageRaw('pos_logistics',d.logisticsList||[]);
     alert('Sauvegarde restaurée. Rechargement...');
     location.reload();
   }catch(err){alert('Erreur restauration : '+err.message);}
@@ -1238,7 +1599,7 @@ function mergeSyncArray(localValue,remoteValue){
 }
 function applyRemoteSyncState(state){
   if(!state||typeof state!=='object')return;
-  const mappings={'pos_products':'products','pos_users':'users','pos_sales':'sales','pos_customers':'customers','pos_stock_movements':'stockMovements','pos_audit_logs':'auditLogs','pos_cash_session':'cashSession','pos_settings':'settings'};
+  const mappings={'pos_products':'products','pos_users':'users','pos_sales':'sales','pos_customers':'customers','pos_stock_movements':'stockMovements','pos_audit_logs':'auditLogs','pos_cash_session':'cashSession','pos_settings':'settings','pos_logistics':'logisticsList'};
   Object.entries(mappings).forEach(([key,prop])=>{
     if(state[prop]===undefined)return;
     const local=loadStorage(key,state[prop]);
@@ -1257,7 +1618,7 @@ async function bootstrapSync(){
     const result=await response.json();
     if(result.state)applyRemoteSyncState(result.state);
     if(!localStorage.getItem('pos_sync_initialized')){
-      ['pos_settings','pos_products','pos_users','pos_sales','pos_customers','pos_stock_movements','pos_audit_logs','pos_cash_session'].forEach(key=>{const raw=localStorage.getItem(key);if(raw!==null)queueSyncChange(key,JSON.parse(raw));});
+      ['pos_settings','pos_products','pos_users','pos_sales','pos_customers','pos_stock_movements','pos_audit_logs','pos_cash_session','pos_logistics'].forEach(key=>{const raw=localStorage.getItem(key);if(raw!==null)queueSyncChange(key,JSON.parse(raw));});
       localStorage.setItem('pos_sync_initialized','1');
       await syncNow(false);
     }
@@ -1374,6 +1735,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   const todayStr=localDateISO();
   const rd=document.getElementById('daily-report-date');if(rd)rd.value=todayStr;
   const dd=document.getElementById('filter-daily-date');if(dd)dd.value=todayStr;
+  const bd=document.getElementById('bl-date-filter');if(bd)bd.value=todayStr;
 });
 
 function applyLoginLogo(){
@@ -1394,6 +1756,7 @@ function syncDataFromStorage(){
   stockMovements=loadStorage('pos_stock_movements',stockMovements);
   auditLogs=loadStorage('pos_audit_logs',auditLogs);
   cashSession=loadStorage('pos_cash_session',cashSession);
+  logisticsList=loadStorage('pos_logistics',logisticsList);
   applySettingsToUI();
   updateCategoryDropdowns();
   if(currentUser){
@@ -1402,7 +1765,7 @@ function syncDataFromStorage(){
     renderPosProducts();renderStockTable();renderSalesTable();renderDailyReport();
     renderProfitsTables();renderDailyItemsTable();updateDashboard();renderUsersTable();
     renderCustomers();populateCustomerSelect();renderMovements();renderAudit();renderCashSession();
-    renderAdminDashboard();
+    renderAdminDashboard();renderLogisticsTable();renderBLTable();
   }
 }
 
@@ -1496,13 +1859,11 @@ function handleLogin(e){
     document.getElementById('role-badge').textContent=user.role;
     
     if(user.role==='CASHIER'){
-        // Caissier : montre la barre de navigation, cache les éléments admin
         document.querySelectorAll('.admin-only').forEach(el=>el.classList.add('hidden'));
         document.getElementById('main-nav').classList.remove('hidden');
         document.getElementById('back-office-return-btn').classList.remove('visible');
         switchTab('pos');
     } else {
-        // Admin/Responsable : cache la barre de navigation, montre les éléments admin
         document.querySelectorAll('.admin-only').forEach(el=>el.classList.remove('hidden'));
         document.getElementById('main-nav').classList.add('hidden');
         switchTab('admin-dashboard');
@@ -1611,7 +1972,8 @@ function switchTab(tabId){
   // Gestion du Back Office
   if(tabId==='dashboard')updateDashboard();
   if(tabId==='admin-dashboard') renderAdminDashboard();
-  
+  if(tabId==='logistics') renderLogisticsTable();
+  if(tabId==='logistics-bl') renderBLTable();
   if(tabId==='profits')renderProfitsTables();
   if(tabId==='daily-items')renderDailyItemsTable();
   if(tabId==='daily-report')renderDailyReport();
@@ -1637,11 +1999,9 @@ function toggleAccordion(header){
     const content = header.nextElementSibling;
     const isOpen = content.classList.contains('open');
     
-    // Fermer tous les autres accordéons (optionnel - comportement accordéon strict)
     document.querySelectorAll('.accordion-content').forEach(c => c.classList.remove('open'));
     document.querySelectorAll('.accordion-header').forEach(h => h.classList.remove('open'));
     
-    // Ouvrir celui cliqué s'il n'était pas déjà ouvert
     if(!isOpen){
         content.classList.add('open');
         header.classList.add('open');
@@ -1987,13 +2347,12 @@ function renderStockTable(){
   const search=(document.getElementById('stock-search')?.value||'').toLowerCase();
   const cat=document.getElementById('stock-cat-filter')?.value||'ALL';
   const filtered=products.filter(p=>(String(p.name).toLowerCase().includes(search)||String(p.sku).includes(search))&&(cat==='ALL'||p.cat===cat));
-  let totalQty=0,totalValue=0;
+  const totalQty=products.reduce((sum,p)=>sum+safeNum(p.stock),0);
+  const totalValue=products.reduce((sum,p)=>sum+(safeNum(p.stock)*safeNum(p.price)),0);
   filtered.forEach(p=>{
     const qty=safeNum(p.stock),price=safeNum(p.price);
-    totalQty+=qty;
-    totalValue+=qty*price;
     const isLow=qty<=safeNum(p.alert);
-    tbody.innerHTML+=`<tr><td class="p-3 admin-only text-center"><input type="checkbox" class="stock-checkbox" value="${p.id}"></td><td class="p-3 font-mono font-bold text-blue-600">${escapeHtml(p.id)}</td><td class="p-3 text-slate-500 font-mono">${escapeHtml(p.sku)}</td><td class="p-3 font-semibold text-slate-800">${escapeHtml(p.name)}</td><td class="p-3"><span class="bg-slate-100 px-2 py-0.5 rounded text-[10px]">${escapeHtml(p.cat)}</span></td><td class="p-3 text-right font-mono">${formatAriary(p.cost)}</td><td class="p-3 text-right font-mono font-bold">${formatAriary(p.price)}</td><td class="p-3 text-right font-bold font-mono ${isLow?'text-red-600':''}">${qty}</td><td class="p-3 text-right text-slate-400 font-mono">${safeNum(p.alert)}</td><td class="p-3 text-center"><span class="px-2 py-0.5 rounded font-bold text-[10px] ${isLow?'bg-red-100 text-red-700':'bg-emerald-100 text-emerald-700'}">${isLow?'RÉAPPRO':'EN STOCK'}</span></td><td class="p-3 text-center admin-only space-x-1"><button onclick="adjustStock('${p.id}')" class="bg-blue-50 hover:bg-blue-100 text-blue-600 px-2 py-1 rounded text-[10px] font-bold">Stock</button><button onclick="deleteProduct('${p.id}')" class="bg-red-50 hover:bg-red-100 text-red-600 px-2 py-1 rounded text-[10px] font-bold">Suppr</button></td></tr>`;
+    tbody.innerHTML+=`<tr><td class="p-3 admin-only text-center"><input type="checkbox" class="stock-checkbox" value="${p.id}"></td><td class="p-3 font-mono font-bold text-blue-600">${escapeHtml(p.id)}</td><td class="p-3 text-slate-500 font-mono">${escapeHtml(p.sku)}</td><td class="p-3 font-semibold text-slate-800">${escapeHtml(p.name)}</td><td class="p-3"><span class="bg-slate-100 px-2 py-0.5 rounded text-[10px]">${escapeHtml(p.cat)}</span></td><td class="p-3 text-right font-mono">${formatAriary(p.cost)}</td><td class="p-3 text-right font-mono text-cyan-600 font-bold">${formatAriary(p.transportTTC||0)}</td><td class="p-3 text-right font-mono font-bold">${formatAriary(p.price)}</td><td class="p-3 text-right font-bold font-mono ${isLow?'text-red-600':''}">${qty}</td><td class="p-3 text-right text-slate-400 font-mono">${safeNum(p.alert)}</td><td class="p-3 text-center"><span class="px-2 py-0.5 rounded font-bold text-[10px] ${isLow?'bg-red-100 text-red-700':'bg-emerald-100 text-emerald-700'}">${isLow?'RÉAPPRO':'EN STOCK'}</span></td><td class="p-3 text-center admin-only space-x-1"><button onclick="openEditProductModal('${p.id}')" class="bg-amber-50 hover:bg-amber-100 text-amber-700 px-2 py-1 rounded text-[10px] font-bold">Modifier</button><button onclick="adjustStock('${p.id}')" class="bg-blue-50 hover:bg-blue-100 text-blue-600 px-2 py-1 rounded text-[10px] font-bold">Stock</button><button onclick="deleteProduct('${p.id}')" class="bg-red-50 hover:bg-red-100 text-red-600 px-2 py-1 rounded text-[10px] font-bold">Suppr</button></td></tr>`;
   });
   const qtyEl=document.getElementById('stock-total-qty');
   const valueEl=document.getElementById('stock-total-value');
@@ -2012,12 +2371,49 @@ function openAddProductModal(){
   document.getElementById('new-cost').value='';
   document.getElementById('new-price').value='';
   document.getElementById('new-category-wrapper').classList.add('hidden');
+  // Reset logistics fields
+  document.getElementById('new-logistics-toggle').checked=false;
+  document.getElementById('new-logistics-fields').classList.add('hidden');
+  document.getElementById('new-logi-type').value='Maritime';
+  document.getElementById('new-logi-custom-wrapper').classList.add('hidden');
+  document.getElementById('new-logi-custom').value='';
+  document.getElementById('new-logi-carrier').value='';
+  document.getElementById('new-logi-contact').value='';
+  document.getElementById('new-logi-registration').value='';
+  document.getElementById('new-logi-route').value='';
+  document.getElementById('new-logi-cost').value='';
+  document.getElementById('new-logi-status').value='En transit';
+  document.getElementById('new-logi-reason').value='';
+  document.getElementById('new-logi-pod').checked=false;
+  if(typeof lucide!=='undefined')lucide.createIcons();
 }
 function closeAddProductModal(){document.getElementById('add-product-modal').classList.add('hidden');}
 function checkNewCategory(val){
   const w=document.getElementById('new-category-wrapper');
   if(val==='NEW')w.classList.remove('hidden');else w.classList.add('hidden');
 }
+
+function toggleNewLogisticsFields(){
+  const toggle=document.getElementById('new-logistics-toggle');
+  const fields=document.getElementById('new-logistics-fields');
+  if(toggle.checked)fields.classList.remove('hidden');else fields.classList.add('hidden');
+}
+function toggleNewLogiTypeCustom(){
+  const type=document.getElementById('new-logi-type').value;
+  const wrapper=document.getElementById('new-logi-custom-wrapper');
+  if(type==='Autre')wrapper.classList.remove('hidden');else wrapper.classList.add('hidden');
+}
+function toggleEditLogisticsFields(){
+  const toggle=document.getElementById('edit-logistics-toggle');
+  const fields=document.getElementById('edit-logistics-fields');
+  if(toggle.checked)fields.classList.remove('hidden');else fields.classList.add('hidden');
+}
+function toggleEditLogiTypeCustom(){
+  const type=document.getElementById('edit-logi-type').value;
+  const wrapper=document.getElementById('edit-logi-custom-wrapper');
+  if(type==='Autre')wrapper.classList.remove('hidden');else wrapper.classList.add('hidden');
+}
+
 function saveNewProduct(e){
   e.preventDefault();
   const sku=document.getElementById('new-sku').value.trim();
@@ -2031,14 +2427,131 @@ function saveNewProduct(e){
   const cost=parseFloat(document.getElementById('new-cost').value)||0;
   const price=parseFloat(document.getElementById('new-price').value)||0;
   const newId=`ART-${String(products.length+1).padStart(3,'0')}`;
-  products.push({id:newId,sku,name,cat,cost,price,stock,alert:10});
+  
+  // Logistics data
+  let logistics=null;
+  let transportTTC=0;
+  const logisticsToggle=document.getElementById('new-logistics-toggle').checked;
+  if(logisticsToggle){
+    const logiType=document.getElementById('new-logi-type').value;
+    const logiCustom=logiType==='Autre'?document.getElementById('new-logi-custom').value.trim():'';
+    transportTTC=parseFloat(document.getElementById('new-logi-cost').value)||0;
+    logistics={
+      type:logiType,
+      customType:logiCustom,
+      carrier:document.getElementById('new-logi-carrier').value.trim(),
+      contact:document.getElementById('new-logi-contact').value.trim(),
+      registration:document.getElementById('new-logi-registration').value.trim(),
+      route:document.getElementById('new-logi-route').value.trim(),
+      costTTC:transportTTC,
+      reason:document.getElementById('new-logi-reason').value.trim(),
+      status:document.getElementById('new-logi-status').value,
+      pod:document.getElementById('new-logi-pod').checked,
+      createdAt:new Date().toLocaleString('fr-FR')
+    };
+  }
+  
+  products.push({id:newId,sku,name,cat,cost,price,transportTTC,stock,alert:10,logistics});
   saveStorage('pos_products',products);
   if(stock)recordStockMovement(newId,stock,'ENTRÉE','Création article');
-  addAudit('PRODUIT',`Création: ${name}`);
+  addAudit('PRODUIT',`Création: ${name}${logistics?' + Logistique':''}`);
   closeAddProductModal();
   syncDataFromStorage();
   alert('Article ajouté !');
 }
+
+function openEditProductModal(productId){
+  const p=products.find(item=>item.id===productId);
+  if(!p){alert('Article introuvable.');return;}
+  document.getElementById('edit-product-id').value=p.id;
+  document.getElementById('edit-sku').value=p.sku??'';
+  document.getElementById('edit-name').value=p.name??'';
+  document.getElementById('edit-stock').value=safeNum(p.stock);
+  document.getElementById('edit-cost').value=safeNum(p.cost);
+  document.getElementById('edit-price').value=safeNum(p.price);
+  document.getElementById('edit-alert').value=safeNum(p.alert);
+  const select=document.getElementById('edit-cat');
+  const cats=[...new Set(products.map(x=>String(x.cat||'').trim()).filter(Boolean))];
+  if(p.cat && !cats.includes(p.cat))cats.push(p.cat);
+  select.innerHTML=cats.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+  select.value=p.cat||cats[0]||'';
+  
+  // Load logistics if exists
+  const hasLogistics=!!p.logistics;
+  document.getElementById('edit-logistics-toggle').checked=hasLogistics;
+  document.getElementById('edit-logistics-fields').classList.toggle('hidden',!hasLogistics);
+  if(hasLogistics){
+    const l=p.logistics;
+    document.getElementById('edit-logi-type').value=l.type||'Maritime';
+    document.getElementById('edit-logi-custom-wrapper').classList.toggle('hidden',l.type!=='Autre');
+    document.getElementById('edit-logi-custom').value=l.customType||'';
+    document.getElementById('edit-logi-carrier').value=l.carrier||'';
+    document.getElementById('edit-logi-contact').value=l.contact||'';
+    document.getElementById('edit-logi-registration').value=l.registration||'';
+    document.getElementById('edit-logi-route').value=l.route||'';
+    document.getElementById('edit-logi-cost').value=l.costTTC||'';
+    document.getElementById('edit-logi-status').value=l.status||'En transit';
+    document.getElementById('edit-logi-reason').value=l.reason||'';
+    document.getElementById('edit-logi-pod').checked=!!l.pod;
+  }
+  
+  document.getElementById('edit-product-modal').classList.remove('hidden');
+  if(typeof lucide!=='undefined')lucide.createIcons();
+}
+function closeEditProductModal(){document.getElementById('edit-product-modal').classList.add('hidden');}
+function saveEditedProduct(e){
+  e.preventDefault();
+  const id=document.getElementById('edit-product-id').value;
+  const p=products.find(item=>item.id===id);
+  if(!p){alert('Article introuvable.');return;}
+  const sku=document.getElementById('edit-sku').value.trim();
+  const name=document.getElementById('edit-name').value.trim();
+  const cat=document.getElementById('edit-cat').value.trim();
+  const newStock=Math.max(0,safeNum(document.getElementById('edit-stock').value));
+  const oldStock=safeNum(p.stock);
+  const cost=Math.max(0,safeNum(document.getElementById('edit-cost').value));
+  const price=Math.max(0,safeNum(document.getElementById('edit-price').value));
+  const alertLevel=Math.max(0,safeNum(document.getElementById('edit-alert').value));
+  
+  // Logistics data
+  let logistics=null;
+  let transportTTC=0;
+  const logisticsToggle=document.getElementById('edit-logistics-toggle').checked;
+  if(logisticsToggle){
+    const logiType=document.getElementById('edit-logi-type').value;
+    const logiCustom=logiType==='Autre'?document.getElementById('edit-logi-custom').value.trim():'';
+    transportTTC=parseFloat(document.getElementById('edit-logi-cost').value)||0;
+    logistics={
+      type:logiType,
+      customType:logiCustom,
+      carrier:document.getElementById('edit-logi-carrier').value.trim(),
+      contact:document.getElementById('edit-logi-contact').value.trim(),
+      registration:document.getElementById('edit-logi-registration').value.trim(),
+      route:document.getElementById('edit-logi-route').value.trim(),
+      costTTC:transportTTC,
+      reason:document.getElementById('edit-logi-reason').value.trim(),
+      status:document.getElementById('edit-logi-status').value,
+      pod:document.getElementById('edit-logi-pod').checked,
+      createdAt:p.logistics?.createdAt||new Date().toLocaleString('fr-FR'),
+      updatedAt:new Date().toLocaleString('fr-FR')
+    };
+  }
+  
+  if(!sku||!name||!cat){alert('Veuillez renseigner le SKU, la désignation et la catégorie.');return;}
+  const duplicate=products.find(item=>item.id!==id && String(item.sku).trim().toLowerCase()===sku.toLowerCase());
+  if(duplicate){alert(`Le SKU « ${sku} » est déjà utilisé par ${duplicate.name}.`);return;}
+  p.sku=sku;p.name=name;p.cat=cat;p.stock=newStock;p.cost=cost;p.price=price;p.alert=alertLevel;p.transportTTC=transportTTC;p.logistics=logistics;
+  saveStorage('pos_products',products);
+  const delta=newStock-oldStock;
+  if(delta!==0)recordStockMovement(id,delta,'AJUSTEMENT','Modification article');
+  addAudit('PRODUIT',`Modification: ${name}${delta!==0?` | Stock ${delta>0?'+':''}${delta}`:''}${logistics?' + Logistique':''}`);
+  closeEditProductModal();
+  updateCategoryDropdowns();
+  syncDataFromStorage();
+  alert('Article modifié et enregistré localement.');
+  autoBackupNow('après modification article');
+}
+
 function adjustStock(productId){
   const p=products.find(item=>item.id===productId);if(!p)return;
   const qtyStr=prompt(`Stock pour "${p.name}" (actuel : ${p.stock}). Entrez +N ou -N :`,'+5');
@@ -2071,6 +2584,402 @@ function deleteSelectedProducts(){
     syncDataFromStorage();
   }
 }
+
+/* ==== LOGISTIQUE & TRANSPORT (NOUVEAU) ==== */
+function renderLogisticsTable(){
+  const tbody=document.getElementById('logistics-table-body');if(!tbody)return;
+  tbody.innerHTML='';
+  const search=(document.getElementById('logistics-search')?.value||'').toLowerCase();
+  const statusFilter=document.getElementById('logistics-status-filter')?.value||'ALL';
+  const typeFilter=document.getElementById('logistics-type-filter')?.value||'ALL';
+  
+  // Collect logistics from products + standalone logisticsList
+  const allLogistics=[];
+  products.forEach(p=>{
+    if(p.logistics){
+      allLogistics.push({
+        id:p.id,
+        productName:p.name,
+        ...p.logistics,
+        source:'product'
+      });
+    }
+  });
+  logisticsList.forEach(l=>{
+    allLogistics.push({
+      id:l.id,
+      productName:l.productName||'—',
+      ...l,
+      source:'standalone'
+    });
+  });
+  
+  const filtered=allLogistics.filter(l=>{
+    const matchSearch=!search||
+      String(l.carrier||'').toLowerCase().includes(search)||
+      String(l.registration||'').toLowerCase().includes(search)||
+      String(l.route||'').toLowerCase().includes(search)||
+      String(l.productName||'').toLowerCase().includes(search);
+    const matchStatus=statusFilter==='ALL'||l.status===statusFilter;
+    const matchType=typeFilter==='ALL'||l.type===typeFilter;
+    return matchSearch&&matchStatus&&matchType;
+  });
+  
+  // KPIs
+  const activeCount=allLogistics.filter(l=>['En transit','En attente'].includes(l.status)).length;
+  const totalCost=allLogistics.reduce((a,l)=>a+safeNum(l.costTTC),0);
+  const deliveredCount=allLogistics.filter(l=>l.status==='Livré').length;
+  const disputeCount=allLogistics.filter(l=>l.status==='Litige').length;
+  document.getElementById('logi-active-count').textContent=activeCount;
+  document.getElementById('logi-total-cost').textContent=formatAriary(totalCost);
+  document.getElementById('logi-delivered-count').textContent=deliveredCount;
+  document.getElementById('logi-dispute-count').textContent=disputeCount;
+  
+  if(filtered.length===0){
+    tbody.innerHTML=`<tr><td colspan="10" class="p-4 text-center text-slate-400">Aucun transport trouvé.</td></tr>`;
+    return;
+  }
+  
+  const statusColors={
+    'En transit':'bg-blue-100 text-blue-700',
+    'Livré':'bg-emerald-100 text-emerald-700',
+    'En attente':'bg-amber-100 text-amber-700',
+    'Litige':'bg-red-100 text-red-700'
+  };
+  
+  filtered.forEach(l=>{
+    const typeLabel=l.type==='Autre'&&l.customType?l.customType:l.type;
+    const podLabel=l.pod?'✅ Oui':'❌ Non';
+    const podClass=l.pod?'text-emerald-600':'text-red-500';
+    tbody.innerHTML+=`<tr>
+      <td class="p-3 text-slate-500 text-[11px]">${escapeHtml(l.createdAt||l.updatedAt||'—')}</td>
+      <td class="p-3"><span class="logistics-badge bg-cyan-50 text-cyan-700">${escapeHtml(typeLabel||'—')}</span></td>
+      <td class="p-3 font-semibold text-slate-800">${escapeHtml(l.carrier||'—')}</td>
+      <td class="p-3 font-mono text-slate-600">${escapeHtml(l.registration||'—')}</td>
+      <td class="p-3 text-slate-600">${escapeHtml(l.route||'—')}</td>
+      <td class="p-3 text-slate-500 text-[11px]">${escapeHtml(l.reason||'—')}</td>
+      <td class="p-3 text-right font-mono font-bold text-cyan-700">${formatAriary(l.costTTC||0)}</td>
+      <td class="p-3 text-center font-bold ${podClass}">${podLabel}</td>
+      <td class="p-3 text-center"><span class="px-2 py-0.5 rounded font-bold text-[10px] ${statusColors[l.status]||'bg-slate-100 text-slate-600'}">${escapeHtml(l.status||'—')}</span></td>
+      <td class="p-3 text-center space-x-1">
+        <button onclick="editLogistics('${l.id}','${l.source}')" class="bg-amber-50 hover:bg-amber-100 text-amber-700 px-2 py-1 rounded text-[10px] font-bold">Modifier</button>
+        <button onclick="printBL('${l.id}','${l.source}')" class="bg-blue-50 hover:bg-blue-100 text-blue-600 px-2 py-1 rounded text-[10px] font-bold">BL</button>
+        <button onclick="deleteLogistics('${l.id}','${l.source}')" class="bg-red-50 hover:bg-red-100 text-red-600 px-2 py-1 rounded text-[10px] font-bold">Suppr</button>
+      </td>
+    </tr>`;
+  });
+  if(typeof lucide!=='undefined')lucide.createIcons();
+}
+
+function renderBLTable(){
+  const tbody=document.getElementById('bl-table-body');if(!tbody)return;
+  tbody.innerHTML='';
+  const dateFilter=document.getElementById('bl-date-filter')?.value||'';
+  
+  const allLogistics=[];
+  products.forEach(p=>{
+    if(p.logistics){
+      allLogistics.push({id:p.id,productName:p.name,...p.logistics,source:'product'});
+    }
+  });
+  logisticsList.forEach(l=>{
+    allLogistics.push({id:l.id,productName:l.productName||'—',...l,source:'standalone'});
+  });
+  
+  const filtered=allLogistics.filter(l=>{
+    if(!dateFilter)return true;
+    const dt=l.createdAt||l.updatedAt||'';
+    return dt.startsWith(dateFilter);
+  });
+  
+  if(filtered.length===0){
+    tbody.innerHTML=`<tr><td colspan="8" class="p-4 text-center text-slate-400">Aucun bon de livraison.</td></tr>`;
+    return;
+  }
+  
+  filtered.forEach(l=>{
+    const blNumber=`BL-${String(l.id).replace(/[^0-9]/g,'').slice(-6)||Date.now().toString().slice(-6)}`;
+    tbody.innerHTML+=`<tr>
+      <td class="p-3 font-mono font-bold text-cyan-700">${escapeHtml(blNumber)}</td>
+      <td class="p-3 text-slate-500 text-[11px]">${escapeHtml(l.createdAt||l.updatedAt||'—')}</td>
+      <td class="p-3 font-semibold text-slate-800">${escapeHtml(l.carrier||'—')}</td>
+      <td class="p-3 font-mono text-slate-600">${escapeHtml(l.registration||'—')}</td>
+      <td class="p-3 text-slate-600">${escapeHtml(l.route||'—')}</td>
+      <td class="p-3 text-right font-mono font-bold text-cyan-700">${formatAriary(l.costTTC||0)}</td>
+      <td class="p-3 text-center font-bold ${l.pod?'text-emerald-600':'text-red-500'}">${l.pod?'✅':'❌'}</td>
+      <td class="p-3 text-center">
+        <button onclick="printBL('${l.id}','${l.source}')" class="bg-blue-50 hover:bg-blue-100 text-blue-600 px-2 py-1 rounded text-[10px] font-bold">Imprimer BL</button>
+      </td>
+    </tr>`;
+  });
+  if(typeof lucide!=='undefined')lucide.createIcons();
+}
+
+function openAddLogisticsModal(){
+  document.getElementById('logistics-modal-title').textContent='Nouveau Transport';
+  document.getElementById('logi-edit-id').value='';
+  document.getElementById('logi-type').value='Maritime';
+  document.getElementById('logi-custom-wrapper').classList.add('hidden');
+  document.getElementById('logi-custom').value='';
+  document.getElementById('logi-carrier').value='';
+  document.getElementById('logi-contact').value='';
+  document.getElementById('logi-registration').value='';
+  document.getElementById('logi-route').value='';
+  document.getElementById('logi-cost').value='';
+  document.getElementById('logi-status').value='En transit';
+  document.getElementById('logi-reason').value='';
+  document.getElementById('logi-pod').checked=false;
+  document.getElementById('logistics-modal').classList.remove('hidden');
+  if(typeof lucide!=='undefined')lucide.createIcons();
+}
+function closeLogisticsModal(){document.getElementById('logistics-modal').classList.add('hidden');}
+function toggleLogiTypeCustom(){
+  const type=document.getElementById('logi-type').value;
+  const wrapper=document.getElementById('logi-custom-wrapper');
+  if(type==='Autre')wrapper.classList.remove('hidden');else wrapper.classList.add('hidden');
+}
+
+function saveLogistics(e){
+  e.preventDefault();
+  const editId=document.getElementById('logi-edit-id').value;
+  const type=document.getElementById('logi-type').value;
+  const customType=type==='Autre'?document.getElementById('logi-custom').value.trim():'';
+  const carrier=document.getElementById('logi-carrier').value.trim();
+  const contact=document.getElementById('logi-contact').value.trim();
+  const registration=document.getElementById('logi-registration').value.trim();
+  const route=document.getElementById('logi-route').value.trim();
+  const costTTC=parseFloat(document.getElementById('logi-cost').value)||0;
+  const status=document.getElementById('logi-status').value;
+  const reason=document.getElementById('logi-reason').value.trim();
+  const pod=document.getElementById('logi-pod').checked;
+  
+  if(!carrier){alert('Le transporteur est requis.');return;}
+  
+  const logisticsData={
+    type,customType,carrier,contact,registration,route,costTTC,status,reason,pod,
+    createdAt:new Date().toLocaleString('fr-FR'),
+    updatedAt:new Date().toLocaleString('fr-FR')
+  };
+  
+  if(editId){
+    const existing=logisticsList.find(l=>l.id===editId);
+    if(existing){
+      Object.assign(existing,logisticsData);
+      existing.updatedAt=new Date().toLocaleString('fr-FR');
+    }
+  }else{
+    const newId=`LOGI-${Date.now()}`;
+    logisticsList.push({id:newId,...logisticsData,productName:'—'});
+  }
+  
+  saveStorage('pos_logistics',logisticsList);
+  addAudit('LOGISTIQUE',editId?`Modification transport ${editId}`:`Nouveau transport ${carrier} — ${formatAriary(costTTC)}`);
+  closeLogisticsModal();
+  renderLogisticsTable();
+  renderBLTable();
+  alert('Transport enregistré !');
+  autoBackupNow('après logistique');
+}
+
+function editLogistics(id,source){
+  if(source==='product'){
+    const p=products.find(x=>x.id===id);
+    if(!p||!p.logistics){alert('Transport introuvable.');return;}
+    // Open product edit modal for logistics
+    openEditProductModal(id);
+    // Scroll to logistics section
+    setTimeout(()=>{
+      const el=document.getElementById('edit-logistics-fields');
+      if(el)el.scrollIntoView({behavior:'smooth',block:'center'});
+    },300);
+    return;
+  }
+  const l=logisticsList.find(x=>x.id===id);
+  if(!l){alert('Transport introuvable.');return;}
+  document.getElementById('logistics-modal-title').textContent='Modifier Transport';
+  document.getElementById('logi-edit-id').value=l.id;
+  document.getElementById('logi-type').value=l.type||'Maritime';
+  document.getElementById('logi-custom-wrapper').classList.toggle('hidden',l.type!=='Autre');
+  document.getElementById('logi-custom').value=l.customType||'';
+  document.getElementById('logi-carrier').value=l.carrier||'';
+  document.getElementById('logi-contact').value=l.contact||'';
+  document.getElementById('logi-registration').value=l.registration||'';
+  document.getElementById('logi-route').value=l.route||'';
+  document.getElementById('logi-cost').value=l.costTTC||'';
+  document.getElementById('logi-status').value=l.status||'En transit';
+  document.getElementById('logi-reason').value=l.reason||'';
+  document.getElementById('logi-pod').checked=!!l.pod;
+  document.getElementById('logistics-modal').classList.remove('hidden');
+  if(typeof lucide!=='undefined')lucide.createIcons();
+}
+
+function deleteLogistics(id,source){
+  if(!confirm('Supprimer ce transport ?'))return;
+  if(source==='product'){
+    const p=products.find(x=>x.id===id);
+    if(p){p.logistics=null;p.transportTTC=0;saveStorage('pos_products',products);}
+  }else{
+    logisticsList=logisticsList.filter(l=>l.id!==id);
+    saveStorage('pos_logistics',logisticsList);
+  }
+  addAudit('LOGISTIQUE',`Suppression transport ${id}`);
+  renderLogisticsTable();
+  renderBLTable();
+  renderStockTable();
+}
+
+function printBL(id,source){
+  let logistics=null;
+  let productName='—';
+  
+  if(source==='product'){
+    const p=products.find(x=>x.id===id);
+    if(!p||!p.logistics){alert('Transport introuvable.');return;}
+    logistics=p.logistics;
+    productName=p.name;
+  }else{
+    const l=logisticsList.find(x=>x.id===id);
+    if(!l){alert('Transport introuvable.');return;}
+    logistics=l;
+    productName=l.productName||'—';
+  }
+  
+  const blNumber=`BL-${String(id).replace(/[^0-9]/g,'').slice(-6)||Date.now().toString().slice(-6)}`;
+  document.getElementById('bl-number').textContent=blNumber;
+  document.getElementById('bl-shop-name').textContent=settings.shopName;
+  document.getElementById('bl-shop-address').textContent=settings.address;
+  document.getElementById('bl-shop-phone').textContent=`Tél : ${settings.phone}`;
+  document.getElementById('bl-date').textContent=logistics.createdAt||logistics.updatedAt||new Date().toLocaleString('fr-FR');
+  document.getElementById('bl-type').textContent=logistics.type==='Autre'&&logistics.customType?logistics.customType:logistics.type||'—';
+  document.getElementById('bl-carrier').textContent=logistics.carrier||'—';
+  document.getElementById('bl-contact').textContent=logistics.contact||'—';
+  document.getElementById('bl-registration').textContent=logistics.registration||'—';
+  document.getElementById('bl-route').textContent=logistics.route||'—';
+  document.getElementById('bl-status').textContent=logistics.status||'—';
+  document.getElementById('bl-status').className='logistics-badge '+(
+    logistics.status==='Livré'?'bg-emerald-100 text-emerald-700':
+    logistics.status==='En transit'?'bg-blue-100 text-blue-700':
+    logistics.status==='En attente'?'bg-amber-100 text-amber-700':
+    'bg-red-100 text-red-700'
+  );
+  document.getElementById('bl-pod').textContent=logistics.pod?'Oui':'Non';
+  document.getElementById('bl-pod').className=logistics.pod?'text-emerald-600 font-bold':'text-red-500 font-bold';
+  document.getElementById('bl-reason').textContent=logistics.reason||'—';
+  document.getElementById('bl-cost').textContent=formatAriary(logistics.costTTC||0);
+  document.getElementById('bl-generated-date').textContent=new Date().toLocaleString('fr-FR');
+  document.getElementById('bl-modal').classList.remove('hidden');
+  if(typeof lucide!=='undefined')lucide.createIcons();
+}
+
+function closeBLModal(){document.getElementById('bl-modal').classList.add('hidden');}
+function printBL(){window.print();}
+function exportBLPDF(){
+  try{
+    const{jsPDF}=window.jspdf;
+    if(!jsPDF){alert('Module PDF indisponible.');return;}
+    const doc=new jsPDF({unit:'mm',format:'a4'});
+    const blNumber=document.getElementById('bl-number').textContent;
+    doc.setFontSize(16);doc.setFont(undefined,'bold');
+    doc.text(settings.shopName||'KAJY EXPRESS',105,20,{align:'center'});
+    doc.setFontSize(9);doc.setFont(undefined,'normal');
+    doc.text(settings.address||'',105,26,{align:'center'});
+    doc.text(`Tél : ${settings.phone||''}`,105,31,{align:'center'});
+    doc.setFontSize(14);doc.setFont(undefined,'bold');
+    doc.text('BON DE LIVRAISON',105,45,{align:'center'});
+    doc.setFontSize(10);doc.setFont(undefined,'normal');
+    doc.text(`N° ${blNumber}`,105,52,{align:'center'});
+    
+    const details=[
+      ['Date',document.getElementById('bl-date').textContent],
+      ['Type',document.getElementById('bl-type').textContent],
+      ['Transporteur',document.getElementById('bl-carrier').textContent],
+      ['Contact',document.getElementById('bl-contact').textContent],
+      ['Immatriculation',document.getElementById('bl-registration').textContent],
+      ['Trajet',document.getElementById('bl-route').textContent],
+      ['Statut',document.getElementById('bl-status').textContent],
+      ['POD',document.getElementById('bl-pod').textContent],
+      ['Motif',document.getElementById('bl-reason').textContent],
+      ['Coût transport TTC',document.getElementById('bl-cost').textContent],
+    ];
+    
+    let y=65;
+    details.forEach(([label,value])=>{
+      doc.setFont(undefined,'bold');
+      doc.text(`${label} :`,20,y);
+      doc.setFont(undefined,'normal');
+      doc.text(value,70,y);
+      y+=8;
+    });
+    
+    y+=10;
+    doc.line(20,y,190,y);
+    y+=10;
+    doc.text('Signature Expéditeur',40,y);
+    doc.text('Signature Destinataire',130,y);
+    y+=5;
+    doc.line(30,y,90,y);
+    doc.line(120,y,180,y);
+    
+    doc.setFontSize(8);
+    doc.text(`Document généré par KAJY EXPRESS & Stock Pro — ${new Date().toLocaleString('fr-FR')}`,105,y+20,{align:'center'});
+    
+    doc.save(`BL_${blNumber}.pdf`);
+  }catch(err){alert('Erreur PDF : '+err.message);}
+}
+
+function exportBLExcel(){
+  const rows=[];
+  const allLogistics=[];
+  products.forEach(p=>{
+    if(p.logistics){
+      allLogistics.push({id:p.id,productName:p.name,...p.logistics});
+    }
+  });
+  logisticsList.forEach(l=>{
+    allLogistics.push({id:l.id,productName:l.productName||'—',...l});
+  });
+  
+  allLogistics.forEach(l=>{
+    rows.push({
+      'N° BL':`BL-${String(l.id).replace(/[^0-9]/g,'').slice(-6)||Date.now().toString().slice(-6)}`,
+      'Date':l.createdAt||l.updatedAt||'',
+      'Transporteur':l.carrier||'',
+      'Contact':l.contact||'',
+      'Immatriculation':l.registration||'',
+      'Trajet':l.route||'',
+      'Type':l.type||'',
+      'Statut':l.status||'',
+      'POD':l.pod?'Oui':'Non',
+      'Coût TTC':safeNum(l.costTTC),
+      'Motif':l.reason||''
+    });
+  });
+  
+  buildKajyExcelReport({
+    title:'BONS DE LIVRAISON',
+    subtitle:'Historique des transports',
+    columns:[
+      {label:'N° BL',key:'N° BL',width:18},
+      {label:'Date',key:'Date',width:22},
+      {label:'Transporteur',key:'Transporteur',width:22},
+      {label:'Contact',key:'Contact',width:18},
+      {label:'Immatriculation',key:'Immatriculation',width:18},
+      {label:'Trajet',key:'Trajet',width:22},
+      {label:'Type',key:'Type',width:14},
+      {label:'Statut',key:'Statut',width:14},
+      {label:'POD',key:'POD',width:10},
+      {label:'Coût TTC',key:'Coût TTC',width:16},
+      {label:'Motif',key:'Motif',width:30}
+    ],
+    rows,
+    filename:buildExcelFilename('Bons de Livraison'),
+    summary:[['Total BL',rows.length],['Coût total TTC',rows.reduce((a,r)=>a+safeNum(r['Coût TTC']),0)],['POD reçus',rows.filter(r=>r.POD==='Oui').length]],
+    numberColumns:['Coût TTC']
+  });
+  addAudit('EXPORT','Export Excel — Bons de livraison');
+}
+
+/* ==== FIN LOGISTIQUE ==== */
 
 function renderProfitsTables(){
   const dailyBody=document.getElementById('daily-profits-body');
@@ -2139,7 +3048,6 @@ function updateDashboard(){
 function renderAdminDashboard(){
     if(!currentUser) return;
 
-    // 1. En-tête
     const nameEl = document.getElementById('admin-welcome-name');
     if(nameEl) nameEl.textContent = currentUser.name;
 
@@ -2149,8 +3057,7 @@ function renderAdminDashboard(){
         dateEl.textContent = now.toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     }
 
-    // 2. KPIs
-    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+    const currentMonth = new Date().toISOString().slice(0, 7);
     let monthlySalesTotal = 0;
     let monthlySalesCount = 0;
     
@@ -2176,7 +3083,6 @@ function renderAdminDashboard(){
     const lowStockCount = products.filter(p => p.stock <= p.alert).length;
     document.getElementById('admin-kpi-alerts').textContent = lowStockCount;
 
-    // 3. Activité récente
     const activityBody = document.getElementById('admin-recent-activity-body');
     if(activityBody) {
         activityBody.innerHTML = '';
@@ -2435,7 +3341,7 @@ function buildKajyExcelReport({title,subtitle='',columns=[],rows=[],filename='',
       if(!ws[a])continue;
       ws[a].s=(r%2===0)?{...S.cell}:{...S.cellAlt};
       const col=columns[c];
-      if(numberColumns.includes(col.key)||['Montant','Total','Prix','Qté','Quantité','Stock','CA','TVA','Bénéfice','Remise'].some(k=>col.label.includes(k))){
+      if(numberColumns.includes(col.key)||['Montant','Total','Prix','Qté','Quantité','Stock','CA','TVA','Bénéfice','Remise','Coût'].some(k=>col.label.includes(k))){
         ws[a].z='#,##0';
         ws[a].s.alignment={horizontal:'right',vertical:'center'};
       }
@@ -2470,7 +3376,7 @@ function buildKajyExcelReport({title,subtitle='',columns=[],rows=[],filename='',
   XLSX.writeFile(wb,filename||buildExcelFilename(title));
 }
 
-/* ---- EXPORT STOCK (STYLE CAPTURE) ---- */
+/* ---- EXPORT STOCK (STYLE CAPTURE) AVEC TRANSPORT TTC ---- */
 function exportStockExcel(){
   try{
     if(typeof XLSX==='undefined'){alert('Module Excel indisponible.');return;}
@@ -2484,18 +3390,20 @@ function exportStockExcel(){
     const totalQty=products.reduce((a,p)=>a+safeNum(p.stock),0);
     const alertCount=products.filter(p=>safeNum(p.stock)<=safeNum(p.alert)).length;
     const productCount=products.length;
+    const totalTransportTTC=products.reduce((a,p)=>a+safeNum(p.transportTTC),0);
+    
     XLSX.utils.sheet_add_aoa(ws,[['Gestion de Stock Simplifiée']],{origin:'A1'});
-    XLSX.utils.sheet_add_aoa(ws,[['Catalogue des articles','','','Date d\'export',now,'','','','','']],{origin:'A2'});
-    XLSX.utils.sheet_add_aoa(ws,[['Articles',productCount,'','Articles en alerte',alertCount,'','Quantité en stock',totalQty,'','Valeur du stock']],{origin:'A4'});
-    XLSX.utils.sheet_add_aoa(ws,[['N°','Code / SKU','Désignation','Catégorie','Prix Achat (Ar)','Prix Vente (Ar)','Stock','Seuil Alerte','Valeur Stock (Ar)','Statut']],{origin:'A7'});
-    const data=products.map((p,i)=>[i+1,p.sku||'',p.name||'',p.cat||'',safeNum(p.cost),safeNum(p.price),safeNum(p.stock),safeNum(p.alert),safeNum(p.stock)*safeNum(p.cost),safeNum(p.stock)<=safeNum(p.alert)?'ALERTE':'OK']);
+    XLSX.utils.sheet_add_aoa(ws,[['Catalogue des articles','','','Date d\'export',now,'','','','','','']],{origin:'A2'});
+    XLSX.utils.sheet_add_aoa(ws,[['Articles',productCount,'','Articles en alerte',alertCount,'','Quantité en stock',totalQty,'','Valeur du stock','','Transport TTC total']],{origin:'A4'});
+    XLSX.utils.sheet_add_aoa(ws,[['N°','Code / SKU','Désignation','Catégorie','Prix Achat (Ar)','Transport TTC (Ar)','Prix Vente (Ar)','Stock','Seuil Alerte','Valeur Stock (Ar)','Statut']],{origin:'A7'});
+    const data=products.map((p,i)=>[i+1,p.sku||'',p.name||'',p.cat||'',safeNum(p.cost),safeNum(p.transportTTC),safeNum(p.price),safeNum(p.stock),safeNum(p.alert),safeNum(p.stock)*safeNum(p.cost),safeNum(p.stock)<=safeNum(p.alert)?'ALERTE':'OK']);
     XLSX.utils.sheet_add_aoa(ws,data,{origin:'A8'});
-    const lastCol=9,lastDataRow=7+data.length;
-    ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:9}},{s:{r:1,c:0},e:{r:1,c:2}},{s:{r:1,c:3},e:{r:1,c:4}},{s:{r:3,c:0},e:{r:3,c:1}},{s:{r:3,c:3},e:{r:3,c:4}},{s:{r:3,c:6},e:{r:3,c:7}},{s:{r:3,c:9},e:{r:4,c:9}}];
-    ws['!cols']=[{wch:6},{wch:18},{wch:38},{wch:18},{wch:16},{wch:16},{wch:10},{wch:12},{wch:18},{wch:12}];
+    const lastCol=10,lastDataRow=7+data.length;
+    ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:10}},{s:{r:1,c:0},e:{r:1,c:2}},{s:{r:1,c:3},e:{r:1,c:4}},{s:{r:3,c:0},e:{r:3,c:1}},{s:{r:3,c:3},e:{r:3,c:4}},{s:{r:3,c:6},e:{r:3,c:7}},{s:{r:3,c:9},e:{r:4,c:9}},{s:{r:3,c:11},e:{r:4,c:11}}];
+    ws['!cols']=[{wch:6},{wch:18},{wch:38},{wch:18},{wch:16},{wch:16},{wch:16},{wch:10},{wch:12},{wch:18},{wch:12},{wch:16}];
     ws['!rows']=[{hpt:32},{hpt:22},{hpt:8},{hpt:28},{hpt:8},{hpt:8},{hpt:28}];
     ws['!freeze']={xSplit:0,ySplit:7};
-    if(data.length)ws['!autofilter']={ref:`A7:J${lastDataRow}`};
+    if(data.length)ws['!autofilter']={ref:`A7:K${lastDataRow}`};
     const titleStyle={font:{bold:true,color:{rgb:'FFFFFF'},sz:18},fill:{fgColor:{rgb:c.primary}},alignment:{horizontal:'center',vertical:'center'}};
     const subtitleStyle={font:{bold:true,color:{rgb:'FFFFFF'},sz:11},fill:{fgColor:{rgb:c.accent}},alignment:{horizontal:'left',vertical:'center'}};
     const dateLabel={font:{bold:true,color:{rgb:'FFFFFF'},sz:10},fill:{fgColor:{rgb:c.accent}},alignment:{horizontal:'center',vertical:'center'}};
@@ -2517,23 +3425,50 @@ function exportStockExcel(){
     if(ws['H4'])ws['H4'].s=kpiValue;
     if(ws['I4'])ws['I4'].s={fill:{fgColor:{rgb:c.primary}}};
     if(ws['J4'])ws['J4'].s=Object.assign({},kpiLabel,{fill:{fgColor:{rgb:c.primary}}});
+    if(ws['K4'])ws['K4'].s={fill:{fgColor:{rgb:c.primary}}};
+    if(ws['L4'])ws['L4'].s=Object.assign({},kpiLabel,{fill:{fgColor:{rgb:c.primary}}});
+    if(ws['L5'])ws['L5'].s=kpiValueBig;
     if(ws['J5'])ws['J5'].s=kpiValueBig;
     for(let cc=0;cc<=lastCol;cc++){const a=XLSX.utils.encode_cell({r:6,c:cc});if(ws[a])ws[a].s=S.header;}
     for(let r=0;r<data.length;r++){
       const rowIdx=7+r;
-      const isAlert=data[r][9]==='ALERTE';
+      const isAlert=data[r][10]==='ALERTE';
       for(let cc=0;cc<=lastCol;cc++){
         const a=XLSX.utils.encode_cell({r:rowIdx,c:cc});
         if(!ws[a])continue;
         ws[a].s=(r%2===0)?{...S.cell}:{...S.cellAlt};
-        if([4,5,8].includes(cc)){ws[a].z='#,##0';ws[a].s.alignment={horizontal:'right',vertical:'center'};}
-        if([6,7].includes(cc)){ws[a].z='#,##0';ws[a].s.alignment={horizontal:'center',vertical:'center'};}
+        if([4,5,6,9].includes(cc)){ws[a].z='#,##0';ws[a].s.alignment={horizontal:'right',vertical:'center'};}
+        if([7,8].includes(cc)){ws[a].z='#,##0';ws[a].s.alignment={horizontal:'center',vertical:'center'};}
         if(cc===0)ws[a].s.alignment={horizontal:'center',vertical:'center'};
       }
-      const sA=XLSX.utils.encode_cell({r:rowIdx,c:9});
+      const sA=XLSX.utils.encode_cell({r:rowIdx,c:10});
       if(ws[sA])ws[sA].s={...ws[sA].s,...(isAlert?S.danger:S.success)};
     }
     XLSX.utils.book_append_sheet(wb,ws,'Gestion de Stock');
+    
+    // Logistics sheet
+    const logiRows=products.filter(p=>p.logistics).map((p,i)=>{
+      const l=p.logistics;
+      return [i+1,p.sku||'',p.name||'',l.type||'',l.customType||'',l.carrier||'',l.contact||'',l.registration||'',l.route||'',safeNum(l.costTTC),l.status||'',l.pod?'Oui':'Non',l.reason||''];
+    });
+    if(logiRows.length){
+      const wsLogi=XLSX.utils.aoa_to_sheet([['LOGISTIQUE & TRANSPORT'],[],['N°','SKU','Désignation','Type','Préciser','Transporteur','Contact','Immatriculation','Trajet','Coût TTC','Statut','POD','Motif'],...logiRows]);
+      wsLogi['!merges']=[{s:{r:0,c:0},e:{r:0,c:12}}];
+      wsLogi['!cols']=[{wch:6},{wch:16},{wch:30},{wch:14},{wch:16},{wch:20},{wch:18},{wch:18},{wch:22},{wch:14},{wch:12},{wch:8},{wch:30}];
+      if(wsLogi['A1'])wsLogi['A1'].s=S.title;
+      for(let cc=0;cc<=12;cc++){const a=XLSX.utils.encode_cell({r:2,c:cc});if(wsLogi[a])wsLogi[a].s=S.header;}
+      for(let r=0;r<logiRows.length;r++){
+        const rowIdx=3+r;
+        for(let cc=0;cc<=12;cc++){
+          const a=XLSX.utils.encode_cell({r:rowIdx,c:cc});
+          if(!wsLogi[a])continue;
+          wsLogi[a].s=(r%2===0)?{...S.cell}:{...S.cellAlt};
+          if(cc===9){wsLogi[a].z='#,##0';wsLogi[a].s.alignment={horizontal:'right',vertical:'center'};}
+        }
+      }
+      XLSX.utils.book_append_sheet(wb,wsLogi,'Logistique');
+    }
+    
     const alertRows=products.filter(p=>safeNum(p.stock)<=safeNum(p.alert));
     const wsAlertData=alertRows.length?alertRows.map((p,i)=>[i+1,p.sku||'',p.name||'',p.cat||'',safeNum(p.stock),safeNum(p.alert)]):[['Aucun produit en alerte']];
     const wsAlert=XLSX.utils.aoa_to_sheet([['PRODUITS EN ALERTE'],[],['N°','SKU','Désignation','Catégorie','Stock','Seuil'],...wsAlertData]);
@@ -2542,17 +3477,19 @@ function exportStockExcel(){
     if(wsAlert['A1'])wsAlert['A1'].s=S.title;
     for(let cc=0;cc<=5;cc++){const a=XLSX.utils.encode_cell({r:2,c:cc});if(wsAlert[a])wsAlert[a].s=S.header;}
     XLSX.utils.book_append_sheet(wb,wsAlert,'Produits en alerte');
+    
     const movements=stockMovements.map(m=>({'Date':m.date||'','ID Article':m.productId||'','Produit':m.productName||'','Type':m.type||'','Quantité':safeNum(m.qty),'Motif':m.reason||'','Utilisateur':m.user||''}));
     const wsMov=XLSX.utils.json_to_sheet(movements.length?movements:[{'Information':'Aucun mouvement'}]);
     XLSX.utils.book_append_sheet(wb,wsMov,'Mouvements de stock');
-    const wsSum=XLSX.utils.aoa_to_sheet([['KAJY EXPRESS & Stock Pro — RÉSUMÉ'],[],['Articles',productCount],['Articles en alerte',alertCount],['Quantité totale en stock',totalQty],['Valeur du stock (Ar)',totalValue],[],['Date d\'export',now],['Version',APP_VERSION]]);
+    
+    const wsSum=XLSX.utils.aoa_to_sheet([['KAJY EXPRESS & Stock Pro — RÉSUMÉ'],[],['Articles',productCount],['Articles en alerte',alertCount],['Quantité totale en stock',totalQty],['Valeur du stock (Ar)',totalValue],['Transport TTC total (Ar)',totalTransportTTC],[],['Date d\'export',now],['Version',APP_VERSION]]);
     wsSum['!merges']=[{s:{r:0,c:0},e:{r:0,c:1}}];
     wsSum['!cols']=[{wch:30},{wch:26}];
     if(wsSum['A1'])wsSum['A1'].s=S.title;
-    for(let r=2;r<=5;r++){const l=XLSX.utils.encode_cell({r,c:0});const v=XLSX.utils.encode_cell({r,c:1});if(wsSum[l])wsSum[l].s=S.kpiLabel;if(wsSum[v])wsSum[v].s=S.kpiValue;}
+    for(let r=2;r<=6;r++){const l=XLSX.utils.encode_cell({r,c:0});const v=XLSX.utils.encode_cell({r,c:1});if(wsSum[l])wsSum[l].s=S.kpiLabel;if(wsSum[v])wsSum[v].s=S.kpiValue;}
     XLSX.utils.book_append_sheet(wb,wsSum,'Résumé');
     XLSX.writeFile(wb,buildExcelFilename(getActivePageName('Gestion Stock')));
-    addAudit('EXPORT','Export Excel du stock — style Gestion Simplifiée');
+    addAudit('EXPORT','Export Excel du stock avec Transport TTC et Logistique');
   }catch(err){console.error(err);alert('Impossible d\'exporter : '+err.message);}
 }
 
@@ -2638,7 +3575,7 @@ function exportReceiptPDF(){
 }
 
 function exportDatabaseBackup(){
-  const backupData={app:'ExpressPOS',version:APP_VERSION,schema:4,exportedAt:localDateTimeISO(),settings,products,users,sales,customers,stockMovements,auditLogs,cashSession};
+  const backupData={app:'ExpressPOS',version:APP_VERSION,schema:5,exportedAt:localDateTimeISO(),settings,products,users,sales,customers,stockMovements,auditLogs,cashSession,logisticsList};
   const dataStr="data:text/json;charset=utf-8,"+encodeURIComponent(JSON.stringify(backupData,null,2));
   const a=document.createElement('a');
   a.setAttribute("href",dataStr);
@@ -2658,6 +3595,7 @@ function importDatabaseBackup(event){
         saveStorage('pos_stock_movements',data.stockMovements||[]);
         saveStorage('pos_audit_logs',data.auditLogs||[]);
         saveStorage('pos_cash_session',data.cashSession||null);
+        saveStorage('pos_logistics',data.logisticsList||[]);
         saveStorage('pos_products',data.products);
         saveStorage('pos_users',data.users);
         saveStorage('pos_sales',data.sales);
@@ -2670,7 +3608,7 @@ function importDatabaseBackup(event){
 }
 
 function requireAdminForDataClear(){if(currentRole!=='ADMIN'){alert('Accès refusé.');return false;}return true;}
-function refreshAfterAdminClear(){syncDataFromStorage();renderStockTable();renderSalesTable();renderDailyReport();renderProfitsTables();renderDailyItemsTable();updateDashboard();renderMovements();renderAudit();renderCashSession();if(typeof lucide!=='undefined')lucide.createIcons();}
+function refreshAfterAdminClear(){syncDataFromStorage();renderStockTable();renderSalesTable();renderDailyReport();renderProfitsTables();renderDailyItemsTable();updateDashboard();renderMovements();renderAudit();renderCashSession();renderLogisticsTable();renderBLTable();if(typeof lucide!=='undefined')lucide.createIcons();}
 function adminClearStockData(){
   if(!requireAdminForDataClear())return;
   if(!confirm('Vider toute la Gestion Stock ? Articles conservés, stock à 0.'))return;
@@ -2735,89 +3673,10 @@ function getAppDiagnostics(){
   normalizeData();
   const keys=Object.keys(localStorage).filter(k=>k.startsWith(APP_STORAGE_PREFIX));
   const bytes=keys.reduce((n,k)=>n+(localStorage.getItem(k)||'').length,0);
-  return{version:APP_VERSION,schema:Number(localStorage.getItem('pos_schema_version')||4),online:navigator.onLine,products:products.length,users:users.length,customers:customers.length,sales:sales.length,stockMovements:stockMovements.length,auditLogs:auditLogs.length,storageApproxKB:Math.round(bytes/1024),syncQueue:getSyncQueue().length,syncEndpoint:getSyncEndpoint(),cashOpen:!!cashSession?.open,autoBackups:(()=>{try{return JSON.parse(localStorage.getItem(AUTO_BACKUP_KEY)||'[]').length;}catch(_){return 0;}})()};
+  return{version:APP_VERSION,schema:Number(localStorage.getItem('pos_schema_version')||5),online:navigator.onLine,products:products.length,users:users.length,customers:customers.length,sales:sales.length,stockMovements:stockMovements.length,auditLogs:auditLogs.length,logistics:logisticsList.length,storageApproxKB:Math.round(bytes/1024),syncQueue:getSyncQueue().length,syncEndpoint:getSyncEndpoint(),cashOpen:!!cashSession?.open,autoBackups:(()=>{try{return JSON.parse(localStorage.getItem(AUTO_BACKUP_KEY)||'[]').length;}catch(_){return 0;}})()};
 }
 
 window.ExpressPOS={version:APP_VERSION,diagnostics:getAppDiagnostics,backup:{now:autoBackupNow,restore:restoreFromAutoBackup,list:()=>{try{return JSON.parse(localStorage.getItem(AUTO_BACKUP_KEY)||'[]').map((s,i)=>({index:i,reason:s.reason,savedAt:s.savedAt,sizeKB:s.sizeKB}));}catch(_){return[];}},clear:clearAutoBackups}};
 </script>
-<!-- MODAL DE MODIFICATION DE PRODUIT -->
-<div id="product-edit-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
-  <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border border-slate-100 transform transition-all">
-    
-    <!-- En-tête -->
-    <div class="bg-slate-800 text-white px-5 py-4 flex justify-between items-center">
-      <div class="flex items-center space-x-2">
-        <i data-lucide="edit-3" class="w-5 h-5 text-emerald-400"></i>
-        <h3 class="font-bold text-sm">Modifier l'article</h3>
-      </div>
-      <button onclick="closeEditModal()" class="text-slate-400 hover:text-white transition">
-        <i data-lucide="x" class="w-5 h-5"></i>
-      </button>
-    </div>
-
-    <!-- Formulaire -->
-    <form id="edit-product-form" onsubmit="saveProductChanges(event)" class="p-5 space-y-4 text-xs">
-      <!-- ID Masqué -->
-      <input type="hidden" id="edit-product-id">
-
-      <div class="grid grid-cols-2 gap-3">
-        <!-- SKU -->
-        <div>
-          <label class="block font-semibold text-slate-700 mb-1">Code / SKU *</label>
-          <input type="text" id="edit-product-sku" required class="w-full border border-slate-300 rounded-lg px-3 py-2 font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none">
-        </div>
-        <!-- Catégorie -->
-        <div>
-          <label class="block font-semibold text-slate-700 mb-1">Catégorie *</label>
-          <input type="text" id="edit-product-category" required class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
-        </div>
-      </div>
-
-      <!-- Désignation / Nom -->
-      <div>
-        <label class="block font-semibold text-slate-700 mb-1">Désignation de l'article *</label>
-        <input type="text" id="edit-product-name" required class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
-      </div>
-
-      <!-- Prix et Transport -->
-      <div class="grid grid-cols-3 gap-3">
-        <div>
-          <label class="block font-semibold text-slate-700 mb-1">Prix Achat HT</label>
-          <input type="number" step="any" id="edit-product-buyPriceHT" min="0" required class="w-full border border-slate-300 rounded-lg px-3 py-2 font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none">
-        </div>
-        <div>
-          <label class="block font-semibold text-slate-700 mb-1">Transport TTC</label>
-          <input type="number" step="any" id="edit-product-transportTTC" min="0" required class="w-full border border-slate-300 rounded-lg px-3 py-2 font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none">
-        </div>
-        <div>
-          <label class="block font-semibold text-slate-700 mb-1">Prix Vente TTC *</label>
-          <input type="number" step="any" id="edit-product-sellPriceTTC" min="0" required class="w-full border border-slate-300 rounded-lg px-3 py-2 font-mono focus:ring-2 focus:ring-blue-500 font-bold text-emerald-600 focus:outline-none">
-        </div>
-      </div>
-
-      <!-- Stock & Seuil d'alerte -->
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="block font-semibold text-slate-700 mb-1">Quantité en Stock *</label>
-          <input type="number" id="edit-product-stock" min="0" required class="w-full border border-slate-300 rounded-lg px-3 py-2 font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none">
-        </div>
-        <div>
-          <label class="block font-semibold text-slate-700 mb-1">Seuil d'Alerte *</label>
-          <input type="number" id="edit-product-alertThreshold" min="0" required class="w-full border border-slate-300 rounded-lg px-3 py-2 font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none">
-        </div>
-      </div>
-
-      <!-- Boutons d'action -->
-      <div class="flex justify-end space-x-2 pt-3 border-t border-slate-100">
-        <button type="button" onclick="closeEditModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition">
-          Annuler
-        </button>
-        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-sm transition">
-          Enregistrer
-        </button>
-      </div>
-    </form>
-  </div>
-</div>
 </body>
 </html>
