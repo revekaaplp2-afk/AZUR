@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KAJY EXPRESS & Stock Pro 5.1.4 - Système de Caisse</title>
+<title>KAJY EXPRESS & Stock Pro 5.1.0 - Système de Caisse</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/lucide@latest"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -12,6 +12,49 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0f172a">
+<style id="kajy-offline-fallback-css">
+/* KAJY — socle d'affichage autonome lorsque Tailwind/CDN ne sont pas disponibles */
+html.kajy-offline-shell,html.kajy-offline-shell body{background:#f1f5f9;color:#1e293b}
+html.kajy-offline-shell *{box-sizing:border-box}
+html.kajy-offline-shell body{margin:0;font-family:Arial,Helvetica,sans-serif;min-height:100vh}
+html.kajy-offline-shell .hidden{display:none!important}
+html.kajy-offline-shell .flex{display:flex}.kajy-offline-shell .flex-col{flex-direction:column}
+html.kajy-offline-shell .items-center{align-items:center}.kajy-offline-shell .justify-between{justify-content:space-between}
+html.kajy-offline-shell .justify-center{justify-content:center}
+html.kajy-offline-shell .grid{display:grid}.kajy-offline-shell .grid-cols-1{grid-template-columns:1fr}
+html.kajy-offline-shell .w-full{width:100%}.kajy-offline-shell .h-full{height:100%}
+html.kajy-offline-shell .fixed{position:fixed}.kajy-offline-shell .inset-0{inset:0}
+html.kajy-offline-shell .overflow-hidden{overflow:hidden}.kajy-offline-shell .overflow-y-auto{overflow-y:auto}.kajy-offline-shell .overflow-x-auto{overflow-x:auto}
+html.kajy-offline-shell .mx-auto{margin-left:auto;margin-right:auto}
+html.kajy-offline-shell .p-3{padding:.75rem}.kajy-offline-shell .p-4{padding:1rem}.kajy-offline-shell .p-5{padding:1.25rem}.kajy-offline-shell .p-8{padding:2rem}
+html.kajy-offline-shell .px-3{padding-left:.75rem;padding-right:.75rem}.kajy-offline-shell .py-2{padding-top:.5rem;padding-bottom:.5rem}
+html.kajy-offline-shell .gap-2{gap:.5rem}.kajy-offline-shell .gap-3{gap:.75rem}.kajy-offline-shell .gap-4{gap:1rem}.kajy-offline-shell .space-y-4>*+*{margin-top:1rem}
+html.kajy-offline-shell .rounded-lg{border-radius:.5rem}.kajy-offline-shell .rounded-xl{border-radius:.75rem}.kajy-offline-shell .rounded-2xl{border-radius:1rem}
+html.kajy-offline-shell .border{border:1px solid #e2e8f0}.kajy-offline-shell .border-b{border-bottom:1px solid #e2e8f0}
+html.kajy-offline-shell .bg-white{background:#fff}.kajy-offline-shell .bg-slate-50{background:#f8fafc}.kajy-offline-shell .bg-slate-800{background:#1e293b}.kajy-offline-shell .bg-slate-900{background:#0f172a}
+html.kajy-offline-shell .text-white{color:#fff}.kajy-offline-shell .text-slate-500{color:#64748b}.kajy-offline-shell .text-slate-800{color:#1e293b}.kajy-offline-shell .text-slate-900{color:#0f172a}
+html.kajy-offline-shell .font-bold{font-weight:700}.kajy-offline-shell .font-black{font-weight:900}
+html.kajy-offline-shell table{width:100%;border-collapse:collapse;background:#fff}
+html.kajy-offline-shell th,html.kajy-offline-shell td{padding:.65rem;border-bottom:1px solid #e2e8f0;text-align:left}
+html.kajy-offline-shell input,html.kajy-offline-shell select,html.kajy-offline-shell button{font:inherit}
+html.kajy-offline-shell input,html.kajy-offline-shell select{background:#fff;border:1px solid #cbd5e1;border-radius:.5rem;padding:.55rem}
+html.kajy-offline-shell button{border:0;border-radius:.5rem;padding:.55rem .8rem;cursor:pointer}
+html.kajy-offline-shell #main-app{min-height:100vh}
+html.kajy-offline-shell main{width:min(1200px,calc(100% - 24px));margin:auto}
+html.kajy-offline-shell header{position:sticky;top:0;z-index:40}
+html.kajy-offline-shell section.tab-content{width:100%}
+html.kajy-offline-shell #auth-screen{z-index:100;background:#0f172a}
+html.kajy-offline-shell #auth-screen>div{background:#fff;width:min(430px,calc(100% - 24px));border-radius:1rem}
+html.kajy-offline-shell .back-office-return-btn{display:none}
+@media(min-width:768px){
+ html.kajy-offline-shell .sm\\:flex{display:flex}
+ html.kajy-offline-shell .sm\\:grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:767px){
+ html.kajy-offline-shell main{width:calc(100% - 12px)}
+ html.kajy-offline-shell table{font-size:12px}
+}
+</style>
 <style>
 @media print{body *{visibility:hidden!important}#printable-receipt,#printable-receipt *{visibility:visible!important}#printable-receipt{position:absolute!important;left:0!important;top:0!important;width:100%!important;margin:0!important;padding:15px!important;background:#fff!important;color:#000!important;box-shadow:none!important}}
 #app-logo-container{transition:transform .2s ease,box-shadow .2s ease}#app-logo-container:hover{transform:translateY(-1px) scale(1.03)}
@@ -19,14 +62,33 @@
 .avatar-crop-preview{width:120px;height:120px;border-radius:50%;object-fit:cover;overflow:hidden;position:relative;margin:0 auto;border:3px solid #3b82f6}
 .sales-action{position:relative;z-index:30;pointer-events:auto!important}
 #sales-table-body td:last-child{position:relative;z-index:20}
-/* Barre flottante : statut réseau + Retour Back Office, sans superposition */
-#kajy-floating-actions{position:fixed;right:16px;bottom:16px;z-index:9998;display:flex;align-items:center;gap:8px;}
-#kajy-offline-indicator{position:static!important;display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 13px;border-radius:9999px;font-size:11px;font-weight:800;box-shadow:0 8px 20px rgba(15,23,42,.18);white-space:nowrap;border:0;}
-#kajy-offline-indicator.online{background:#16a34a!important;color:#fff!important;}
-#kajy-offline-indicator.offline{background:#dc2626!important;color:#fff!important;}
-.back-office-return-btn {position:static;display:none;align-items:center;gap:8px;min-height:40px;padding:0 14px;background:#4f46e5;color:white;font-weight:700;font-size:12px;border-radius:9999px;box-shadow:0 8px 20px rgba(79,70,229,.25);transition:all .2s ease;cursor:pointer;border:none;}
-.back-office-return-btn:hover{transform:translateY(-1px);}
-.back-office-return-btn.visible{display:inline-flex;}
+/* Bouton Retour Back Office flottant */
+.back-office-return-btn {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 9998;
+    display: none;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    color: white;
+    font-weight: 700;
+    font-size: 13px;
+    border-radius: 9999px;
+    box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.5);
+    transition: all 0.2s ease;
+    cursor: pointer;
+    border: none;
+}
+.back-office-return-btn:hover {
+    transform: translateY(-2px) scale(1.03);
+    box-shadow: 0 15px 30px -5px rgba(99, 102, 241, 0.6);
+}
+.back-office-return-btn.visible {
+    display: flex;
+}
 /* Accordéon */
 .accordion-content {
     max-height: 0;
@@ -43,82 +105,24 @@
     transform: rotate(180deg);
 }
 </style>
-<style id="kajy-android-mobile">
-/* KAJY Android/mobile optimization — preserves the existing visual identity */
-/* Optimisation mobile Android — conserve la structure et l'identité visuelle */
-html,body{overscroll-behavior-y:none;}
-button,a,input,select,textarea{touch-action:manipulation;}
-button{-webkit-tap-highlight-color:transparent;}
-@media (max-width: 768px){
-  html,body{width:100%;min-width:0;overflow-x:hidden;-webkit-text-size-adjust:100%;}
-  body{padding-bottom:env(safe-area-inset-bottom);}
-  button,input,select,textarea{font-size:16px;}
-  button{min-height:44px;}
-  input,select,textarea{min-height:44px;}
-  #app-logo-container{width:42px;height:42px;flex:none;}
-  #app-brand-title{font-size:14px;}
-  #main-nav{top:0!important;position:sticky;}
-  #main-nav>div{padding-left:8px;padding-right:8px;scrollbar-width:none;}
-  #main-nav>div::-webkit-scrollbar{display:none;}
-  .nav-tab{min-height:48px!important;padding:10px 12px!important;}
-  main{padding-left:10px!important;padding-right:10px!important;padding-top:12px!important;padding-bottom:18px!important;}
-  /* Les tableaux restent lisibles et défilables horizontalement */
-  table{min-width:640px;}
-  .overflow-x-auto{-webkit-overflow-scrolling:touch;scrollbar-width:thin;}
-  /* Cartes et modales plus confortables au toucher */
-  [class*="rounded-xl"],[class*="rounded-2xl"]{max-width:100%;}
-  .fixed.inset-0{padding:10px!important;}
-  .fixed.inset-0>div{max-height:94vh;overflow-y:auto;}
-  /* Zone POS : recherche toujours accessible */
-  #pos-product-grid{max-height:46vh!important;min-height:180px;}
-  #pos-barcode-input,#pos-search{font-size:16px!important;}
-  /* Sélecteurs de filtres empilés sans débordement */
-  #sec-pos .flex.flex-col.sm\:flex-row{width:100%;}
-  #sec-pos select{width:100%;}
-  /* Boutons d'action plus faciles à presser */
-  .sales-action{min-width:44px;min-height:44px;}
-  #kajy-floating-actions{right:10px;bottom:calc(10px + env(safe-area-inset-bottom));gap:6px;max-width:calc(100vw - 20px);}
-  #kajy-offline-indicator{min-height:44px;padding:0 12px;font-size:10px;}
-  .back-office-return-btn{min-height:44px;padding:0 12px;font-size:11px;}
-}
-@media (max-width: 480px){
-  header .max-w-7xl{padding-left:8px!important;padding-right:8px!important;}
-  header .text-slate-400{display:none;}
-  #auth-screen{align-items:flex-start!important;padding-top:18px!important;}
-  #auth-screen>div{padding:20px!important;margin-top:0!important;}
-  #login-logo-container{width:112px;height:112px;}
-  #login-pin{letter-spacing:.5em;}
-  #back-office-return-btn span{display:none;}
-  .back-office-return-btn{width:46px;height:46px;min-height:46px;padding:0;justify-content:center;border-radius:50%;}
-  #kajy-offline-indicator{min-width:88px;height:46px;min-height:46px;}
-  /* Évite les boutons minuscules dans les en-têtes de cartes */
-  .flex.justify-between button{min-width:44px;}
-}
-@media (orientation: landscape) and (max-height: 520px){
-  #auth-screen{align-items:flex-start!important;}
-  #auth-screen>div{margin:8px auto!important;}
-  #login-logo-container{width:72px;height:72px;}
-}
-</style>
 <script>
 window.KAJY_OFFLINE={online:navigator.onLine};
+(function(){
+  const root=document.documentElement;
+  const mark=()=>root.classList.toggle('kajy-offline-shell',!navigator.onLine);
+  mark();
+  window.addEventListener('online',mark);
+  window.addEventListener('offline',mark);
+})();
 const isHttp=location.protocol==='http:'||location.protocol==='https:';
 const isElectron=navigator.userAgent.toLowerCase().includes('electron');
-const isAndroidApp=location.protocol==='file:';
-if('serviceWorker' in navigator && isHttp && !isElectron && !isAndroidApp){
+if('serviceWorker' in navigator && isHttp && !isElectron){
 window.addEventListener('load',()=>{navigator.serviceWorker.register('./sw.js',{scope:'./'}).then(r=>console.log('SW actif',r.scope)).catch(e=>console.warn('SW non dispo',e));});
 }
 function updateNetworkStatus(){
-  const online=!!navigator.onLine;
-  window.KAJY_OFFLINE.online=online;
-  const el=document.getElementById('kajy-offline-indicator');
-  if(el){
-    el.textContent=online?'● En ligne':'● Hors ligne';
-    el.className=online?'online':'offline';
-    el.setAttribute('aria-label',online?'Connexion Internet active':'Hors ligne, données locales actives');
-    el.title=online?'Connexion Internet active':'Hors ligne — les données locales restent disponibles';
-  }
-  if(typeof updateSyncUI==='function') updateSyncUI(online?'Connexion disponible.':'Hors ligne : données locales.');
+window.KAJY_OFFLINE.online=navigator.onLine;
+const el=document.getElementById('kajy-offline-indicator');
+if(el){el.textContent=navigator.onLine?'● En ligne':'● Hors ligne — données locales';el.className='fixed bottom-3 right-3 z-[9999] px-3 py-1.5 rounded-full text-[10px] font-bold shadow-lg bg-slate-900 text-white';}
 }
 window.addEventListener('online',updateNetworkStatus);
 window.addEventListener('offline',updateNetworkStatus);
@@ -126,21 +130,20 @@ document.addEventListener('DOMContentLoaded',updateNetworkStatus);
 </script>
 </head>
 <body class="h-full font-sans antialiased text-slate-800 flex flex-col">
-<div id="kajy-floating-actions" aria-label="Actions rapides">
-  <div id="kajy-offline-indicator" aria-live="polite" role="status">● Vérification…</div>
-  <!-- BOUTON RETOUR BACK OFFICE -->
-  <button id="back-office-return-btn" class="back-office-return-btn" onclick="switchTab('admin-dashboard')" aria-label="Retour au Back Office" title="Retour au Back Office">
-      <i data-lucide="arrow-left" class="w-4 h-4"></i>
-      <span>Retour au Back Office</span>
-  </button>
-</div>
+<div id="kajy-offline-indicator" aria-live="polite">● Vérification réseau…</div>
+
+<!-- BOUTON RETOUR BACK OFFICE (Flottant) -->
+<button id="back-office-return-btn" class="back-office-return-btn" onclick="switchTab('admin-dashboard')">
+    <i data-lucide="arrow-left" class="w-4 h-4"></i>
+    <span>Retour au Back Office</span>
+</button>
 
 <!-- ÉCRAN LOGIN -->
 <div id="auth-screen" class="fixed inset-0 bg-slate-900 z-50 flex items-center justify-center p-4 overflow-y-auto">
 <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 space-y-6 my-auto">
 <div class="text-center space-y-2">
   <div id="login-logo-container" class="w-40 h-40 rounded-full mx-auto flex items-center justify-center overflow-hidden bg-white shadow-xl shadow-blue-500/30 ring-4 ring-blue-500/40">
-    <img id="login-logo-img" src="assets/kajy_logo.png" onerror="this.onerror=null;this.src='assets/kajy_logo.svg'" alt="KAJY Solutions Digitales" class="w-full h-full object-contain p-2">
+    <img id="login-logo-img" src="assets/kajy_logo.png" alt="KAJY Solutions Digitales" class="w-full h-full object-contain p-2">
     <i id="login-logo-icon" data-lucide="shopping-bag" class="w-9 h-9 text-blue-600 hidden"></i>
 </div>
 <h2 class="font-bold text-xl text-slate-900">Connexion Sécurisée</h2>
@@ -188,7 +191,7 @@ document.addEventListener('DOMContentLoaded',updateNetworkStatus);
 <div class="max-w-7xl mx-auto px-4 py-2.5 flex justify-between items-center">
 <div class="flex items-center space-x-3">
 <div id="app-logo-container" class="w-11 h-11 rounded-2xl bg-white/95 p-1.5 shadow-lg shadow-blue-950/30 ring-1 ring-white/20 flex items-center justify-center overflow-hidden">
-<img id="app-logo-img" src="assets/kajy_logo.png" onerror="this.onerror=null;this.src='assets/kajy_logo.svg'" alt="Logo" class="w-full h-full object-contain">
+<img id="app-logo-img" src="assets/kajy_logo.png" alt="Logo" class="w-full h-full object-contain">
 </div>
 <div>
 <h1 id="app-brand-title" class="font-bold text-base leading-tight tracking-wide">ExpressPOS <span class="text-blue-400">& Stock Pro</span></h1>
@@ -314,29 +317,68 @@ document.addEventListener('DOMContentLoaded',updateNetworkStatus);
 
 <!-- STOCK -->
 <section id="sec-stock" class="tab-content hidden space-y-4">
-<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-<div><h2 class="font-bold text-base text-slate-800">Catalogue des Articles & Stocks</h2><p class="text-xs text-slate-500">Gestion des prix, suppression d'articles et réapprovisionnement</p></div>
-<div class="flex items-center space-x-2">
-<button onclick="exportStockExcel()" class="bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center space-x-1 shadow-sm transition"><i data-lucide="file-spreadsheet" class="w-4 h-4"></i><span>Exporter (XLSX)</span></button>
-<button onclick="deleteSelectedProducts()" class="admin-only bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center space-x-1 shadow-sm transition"><i data-lucide="trash-2" class="w-4 h-4"></i><span>Supprimer Sélection</span></button>
-<button onclick="openAddProductModal()" class="admin-only bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center space-x-1 shadow-sm transition"><i data-lucide="plus" class="w-4 h-4"></i><span>Nouveau Produit</span></button>
-</div>
-</div>
-<div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex flex-col sm:flex-row gap-2">
-<input type="text" id="stock-search" oninput="renderStockTable()" placeholder="Filtrer par nom ou SKU..." class="flex-grow border border-slate-300 rounded-lg px-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-<select id="stock-cat-filter" onchange="renderStockTable()" class="border border-slate-300 rounded-lg px-3 py-1.5 text-xs bg-white"><option value="ALL">Toutes catégories</option></select>
-</div>
-<div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-<div class="overflow-x-auto"><table class="w-full text-left text-xs">
-<thead class="bg-slate-800 text-white uppercase text-[10px] tracking-wider"><tr>
-<th class="p-3 admin-only text-center"><input type="checkbox" id="select-all-stock" onclick="toggleSelectAllStock(this)"></th>
-<th class="p-3">ID</th><th class="p-3">SKU</th><th class="p-3">Désignation</th><th class="p-3">Catégorie</th>
-<th class="p-3 text-right">Prix Achat HT</th><th class="p-3 text-right">Prix Vente TTC</th><th class="p-3 text-right">Stock</th>
-<th class="p-3 text-right">Seuil Alerte</th><th class="p-3 text-center">Statut</th><th class="p-3 text-center admin-only">Actions</th>
-</tr></thead>
-<tbody id="stock-table-body" class="divide-y divide-slate-100"></tbody>
-</table></div>
-</div>
+  <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+    <div>
+      <h2 class="font-bold text-base text-slate-800">Catalogue des Articles & Stocks</h2>
+      <p class="text-xs text-slate-500">Gestion des prix, modification, suppression d'articles et réapprovisionnement</p>
+    </div>
+    <div class="flex items-center space-x-2">
+      <button onclick="exportStockExcel()" class="bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center space-x-1 shadow-sm transition">
+        <i data-lucide="file-spreadsheet" class="w-4 h-4"></i><span>Exporter (XLSX)</span>
+      </button>
+      <button onclick="deleteSelectedProducts()" class="admin-only bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center space-x-1 shadow-sm transition">
+        <i data-lucide="trash-2" class="w-4 h-4"></i><span>Supprimer Sélection</span>
+      </button>
+      <button onclick="openAddProductModal()" class="admin-only bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center space-x-1 shadow-sm transition">
+        <i data-lucide="plus" class="w-4 h-4"></i><span>Nouveau Produit</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex flex-col sm:flex-row gap-2">
+    <input type="text" id="stock-search" oninput="renderStockTable()" placeholder="Filtrer par nom ou SKU..." class="flex-grow border border-slate-300 rounded-lg px-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+    <select id="stock-cat-filter" onchange="renderStockTable()" class="border border-slate-300 rounded-lg px-3 py-1.5 text-xs bg-white">
+      <option value="ALL">Toutes catégories</option>
+    </select>
+  </div>
+
+  <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-left text-xs">
+        <thead class="bg-slate-800 text-white uppercase text-[10px] tracking-wider">
+          <tr>
+            <th class="p-3 admin-only text-center"><input type="checkbox" id="select-all-stock" onclick="toggleSelectAllStock(this)"></th>
+            <th class="p-3">ID</th>
+            <th class="p-3">SKU</th>
+            <th class="p-3">Désignation</th>
+            <th class="p-3">Catégorie</th>
+            <th class="p-3 text-right">Prix Achat HT</th>
+            <th class="p-3 text-right">Transport TTC</th>
+            <th class="p-3 text-right">Prix Vente TTC</th>
+            <th class="p-3 text-right">Stock</th>
+            <th class="p-3 text-right">Seuil Alerte</th>
+            <th class="p-3 text-center">Statut</th>
+            <th class="p-3 text-center admin-only">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="stock-table-body" class="divide-y divide-slate-100"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Synthèse du stock -->
+  <div id="stock-total-summary" class="bg-slate-900 text-white rounded-xl shadow-sm border border-slate-700 p-3.5">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+      <div class="flex items-center gap-2">
+        <i data-lucide="boxes" class="w-4 h-4 text-emerald-400"></i>
+        <span class="text-xs font-bold">TOTAL DES PRODUITS EN STOCK</span>
+      </div>
+      <div class="flex flex-wrap items-center gap-4 text-xs">
+        <span>Quantité : <strong id="stock-total-qty" class="font-mono text-sm">0</strong> unité(s)</span>
+        <span>Valeur au prix de vente : <strong id="stock-total-value" class="font-mono text-sm text-emerald-300">0 Ar</strong></span>
+      </div>
+    </div>
+  </div>
 </section>
 
 <!-- VENTES -->
@@ -515,6 +557,13 @@ document.addEventListener('DOMContentLoaded',updateNetworkStatus);
             </div>
             <div class="bg-red-50 p-2.5 rounded-lg text-red-600"><i data-lucide="alert-triangle" class="w-5 h-5"></i></div>
         </div>
+    </div>
+    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+            <p class="text-[11px] font-bold uppercase text-slate-400">Valeur totale du stock</p>
+            <h3 id="admin-kpi-stock-value" class="text-xl font-black text-emerald-600 font-mono mt-1">0 Ar</h3>
+        </div>
+        <div class="text-xs text-slate-500">Quantité totale : <strong id="admin-kpi-stock-qty" class="font-mono text-slate-800">0</strong> unité(s)</div>
     </div>
 
     <!-- Activité et Navigation -->
@@ -699,19 +748,11 @@ document.addEventListener('DOMContentLoaded',updateNetworkStatus);
 <section id="sec-settings" class="tab-content hidden space-y-5">
 <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 space-y-4">
 <h2 class="font-bold text-base text-slate-800 flex items-center space-x-2 border-b pb-3"><i data-lucide="settings" class="w-5 h-5 text-blue-600"></i><span>Paramètres Généraux</span></h2>
-<div class="bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2"><span><b>État :</b> les paramètres sont enregistrés localement et ajoutés automatiquement à la file de synchronisation.</span><button type="button" onclick="updateSyncUI('État des paramètres actualisé.')" class="bg-white border border-blue-200 px-3 py-2 rounded-lg font-bold">Actualiser l’état</button></div>
 <form onsubmit="saveSettings(event)" class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
 <div><label class="font-bold text-slate-600">Nom du Magasin</label><input type="text" id="set-shop-name" class="w-full mt-1 border border-slate-300 p-2.5 rounded-lg font-semibold" required></div>
 <div><label class="font-bold text-slate-600">Adresse</label><input type="text" id="set-shop-address" class="w-full mt-1 border border-slate-300 p-2.5 rounded-lg" required></div>
 <div><label class="font-bold text-slate-600">Téléphone</label><input type="text" id="set-shop-phone" class="w-full mt-1 border border-slate-300 p-2.5 rounded-lg" required></div>
 <div><label class="font-bold text-slate-600">Taux de TVA (%)</label><input type="number" id="set-tva-rate" step="1" min="0" max="100" class="w-full mt-1 border border-slate-300 p-2.5 rounded-lg" required></div>
-<div class="sm:col-span-2 bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2">
-<label class="font-bold text-slate-600">Adresse de synchronisation</label>
-<input type="url" id="set-sync-endpoint" placeholder="https://serveur:3000/api/sync" class="w-full mt-1 border border-slate-300 p-2.5 rounded-lg text-xs">
-<p id="sync-queue-info" class="text-[10px] text-slate-500">État de synchronisation en attente…</p>
-<span id="sync-settings-status" class="hidden text-[10px] font-bold text-emerald-600">● Synchronisation</span>
-<p class="text-[10px] text-slate-500">Sur Android, utilisez l’adresse IP ou le nom réseau du serveur multi-PC, pas « localhost » si le serveur tourne sur un autre appareil.</p>
-</div>
 <div class="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
 <label class="font-bold text-slate-600">Logo de l'entreprise</label>
 <input id="setting-logo-file" type="file" accept="image/*" class="w-full text-xs">
@@ -960,7 +1001,7 @@ document.addEventListener('DOMContentLoaded',updateNetworkStatus);
 /* ============================================================================
    KAJY EXPRESS & Stock Pro v5.1.0
    ============================================================================ */
-const APP_VERSION='5.1.4';
+const APP_VERSION='5.1.0';
 const APP_STORAGE_PREFIX='pos_';
 const SYNC_QUEUE_KEY='pos_sync_queue';
 const SYNC_META_KEY='pos_sync_meta';
@@ -990,7 +1031,7 @@ function saveStorageRaw(key,val){try{localStorage.setItem(key,JSON.stringify(val
 
 let settings=loadStorage('pos_settings',{
   shopName:"SUPERMARCHÉ EXPRESS",address:"102 Route d'Ivato, Antananarivo",phone:"+261 34 00 000 00",
-  nif:"",stat:"",tvaRate:20,logo:"assets/kajy_logo.svg",syncEndpoint:"",
+  nif:"",stat:"",tvaRate:20,logo:"assets/kajy_logo.png",syncEndpoint:"",
   excelColors:{primary:"1F4E78",secondary:"D9EAF7",accent:"5B9BD5",subtitle:"17365D",subtitleBg:"D9EAF7",danger:"C00000",dangerBg:"FCE4D6",success:"548235",successBg:"E2F0D9",neutral:"F4F8FC",text:"1F1F1F"}
 });
 settings.nif=typeof settings.nif==='string'?settings.nif:'';
@@ -1300,20 +1341,15 @@ function updateExcelPreview(){
 function saveExcelColors(){
   const get=id=>(document.getElementById(id)?.value||'').replace('#','').toUpperCase();
   settings.excelColors={primary:get('excel-primary'),secondary:get('excel-secondary'),accent:get('excel-accent'),subtitle:get('excel-subtitle'),subtitleBg:get('excel-subtitle-bg'),danger:get('excel-danger'),dangerBg:get('excel-danger-bg'),success:get('excel-success'),successBg:get('excel-success-bg'),neutral:get('excel-neutral'),text:'1F1F1F'};
-  const ok=saveStorage('pos_settings',settings);
-  if(!ok){alert('Impossible d’enregistrer les couleurs.');return;}
-  loadExcelColorsToUI();
+  saveStorage('pos_settings',settings);
   addAudit('PARAMÈTRES','Couleurs Excel personnalisées');
-  updateSyncUI('Couleurs Excel enregistrées localement.');
-  alert('Couleurs Excel enregistrées et synchronisées !');
+  alert('Couleurs Excel enregistrées !');
 }
 function resetExcelColors(){
   settings.excelColors={primary:"1F4E78",secondary:"D9EAF7",accent:"5B9BD5",subtitle:"17365D",subtitleBg:"D9EAF7",danger:"C00000",dangerBg:"FCE4D6",success:"548235",successBg:"E2F0D9",neutral:"F4F8FC",text:"1F1F1F"};
   saveStorage('pos_settings',settings);
   loadExcelColorsToUI();
-  addAudit('PARAMÈTRES','Couleurs Excel réinitialisées');
-  updateSyncUI('Couleurs Excel réinitialisées.');
-  alert('Couleurs réinitialisées et enregistrées.');
+  alert('Couleurs réinitialisées.');
 }
 
 /* ==== INIT ==== */
@@ -1344,7 +1380,7 @@ function applyLoginLogo(){
   const img=document.getElementById('login-logo-img');
   const icon=document.getElementById('login-logo-icon');
   if(!img||!icon)return;
-  img.src=settings.logo||'assets/kajy_logo.svg';
+  img.src=settings.logo||'assets/kajy_logo.png';
   img.classList.remove('hidden');
   icon.classList.add('hidden');
 }
@@ -1374,7 +1410,7 @@ function applySettingsToUI(){
   const brand=document.getElementById('app-brand-title');
   if(brand)brand.innerHTML=`${settings.shopName} <span class="text-blue-400">& Stock Pro</span>`;
   const appLogo=document.getElementById('app-logo-img');
-  if(appLogo)appLogo.src=settings.logo||'assets/kajy_logo.svg';
+  if(appLogo)appLogo.src=settings.logo||'assets/kajy_logo.png';
   const l=document.getElementById('label-tva-rate');
   if(l)l.innerText=`TVA (${settings.tvaRate}%) :`;
   const rn=document.getElementById('rec-shop-name');if(rn)rn.innerText=settings.shopName;
@@ -1409,7 +1445,7 @@ function saveCompanyLogo(){
 }
 
 function removeCompanyLogo(){
-  settings.logo='assets/kajy_logo.svg';
+  settings.logo='assets/kajy_logo.png';
   saveStorage('pos_settings',settings);
   applyLoginLogo();applySettingsToUI();
   const input=document.getElementById('setting-logo-file');if(input)input.value='';
@@ -1425,12 +1461,10 @@ function saveSettings(e){
   settings.stat=document.getElementById('set-stat').value.trim();
   const si=document.getElementById('set-sync-endpoint');
   settings.syncEndpoint=(si?.value||SYNC_DEFAULT_ENDPOINT).trim();
-  const ok=saveStorage('pos_settings',settings);
-  if(!ok){alert('Impossible d’enregistrer les paramètres. Vérifiez l’espace de stockage.');return;}
+  saveStorage('pos_settings',settings);
   addAudit('PARAMÈTRES','Informations magasin / TVA / NIF / STAT mises à jour');
   applySettingsToUI();
-  updateSyncUI('Paramètres enregistrés localement.');
-  alert('Paramètres enregistrés et mis à jour !');
+  alert('Paramètres enregistrés !');
 }
 
 function openPrivacyModal(){document.getElementById('privacy-modal').classList.remove('hidden');}
@@ -1952,11 +1986,21 @@ function renderStockTable(){
   tbody.innerHTML='';
   const search=(document.getElementById('stock-search')?.value||'').toLowerCase();
   const cat=document.getElementById('stock-cat-filter')?.value||'ALL';
-  products.filter(p=>(String(p.name).toLowerCase().includes(search)||String(p.sku).includes(search))&&(cat==='ALL'||p.cat===cat)).forEach(p=>{
-    const isLow=p.stock<=p.alert;
-    tbody.innerHTML+=`<tr><td class="p-3 admin-only text-center"><input type="checkbox" class="stock-checkbox" value="${p.id}"></td><td class="p-3 font-mono font-bold text-blue-600">${escapeHtml(p.id)}</td><td class="p-3 text-slate-500 font-mono">${escapeHtml(p.sku)}</td><td class="p-3 font-semibold text-slate-800">${escapeHtml(p.name)}</td><td class="p-3"><span class="bg-slate-100 px-2 py-0.5 rounded text-[10px]">${escapeHtml(p.cat)}</span></td><td class="p-3 text-right font-mono">${formatAriary(p.cost)}</td><td class="p-3 text-right font-mono font-bold">${formatAriary(p.price)}</td><td class="p-3 text-right font-bold font-mono ${isLow?'text-red-600':''}">${p.stock}</td><td class="p-3 text-right text-slate-400 font-mono">${p.alert}</td><td class="p-3 text-center"><span class="px-2 py-0.5 rounded font-bold text-[10px] ${isLow?'bg-red-100 text-red-700':'bg-emerald-100 text-emerald-700'}">${isLow?'RÉAPPRO':'EN STOCK'}</span></td><td class="p-3 text-center admin-only space-x-1"><button onclick="adjustStock('${p.id}')" class="bg-blue-50 hover:bg-blue-100 text-blue-600 px-2 py-1 rounded text-[10px] font-bold">Stock</button><button onclick="deleteProduct('${p.id}')" class="bg-red-50 hover:bg-red-100 text-red-600 px-2 py-1 rounded text-[10px] font-bold">Suppr</button></td></tr>`;
+  const filtered=products.filter(p=>(String(p.name).toLowerCase().includes(search)||String(p.sku).includes(search))&&(cat==='ALL'||p.cat===cat));
+  let totalQty=0,totalValue=0;
+  filtered.forEach(p=>{
+    const qty=safeNum(p.stock),price=safeNum(p.price);
+    totalQty+=qty;
+    totalValue+=qty*price;
+    const isLow=qty<=safeNum(p.alert);
+    tbody.innerHTML+=`<tr><td class="p-3 admin-only text-center"><input type="checkbox" class="stock-checkbox" value="${p.id}"></td><td class="p-3 font-mono font-bold text-blue-600">${escapeHtml(p.id)}</td><td class="p-3 text-slate-500 font-mono">${escapeHtml(p.sku)}</td><td class="p-3 font-semibold text-slate-800">${escapeHtml(p.name)}</td><td class="p-3"><span class="bg-slate-100 px-2 py-0.5 rounded text-[10px]">${escapeHtml(p.cat)}</span></td><td class="p-3 text-right font-mono">${formatAriary(p.cost)}</td><td class="p-3 text-right font-mono font-bold">${formatAriary(p.price)}</td><td class="p-3 text-right font-bold font-mono ${isLow?'text-red-600':''}">${qty}</td><td class="p-3 text-right text-slate-400 font-mono">${safeNum(p.alert)}</td><td class="p-3 text-center"><span class="px-2 py-0.5 rounded font-bold text-[10px] ${isLow?'bg-red-100 text-red-700':'bg-emerald-100 text-emerald-700'}">${isLow?'RÉAPPRO':'EN STOCK'}</span></td><td class="p-3 text-center admin-only space-x-1"><button onclick="adjustStock('${p.id}')" class="bg-blue-50 hover:bg-blue-100 text-blue-600 px-2 py-1 rounded text-[10px] font-bold">Stock</button><button onclick="deleteProduct('${p.id}')" class="bg-red-50 hover:bg-red-100 text-red-600 px-2 py-1 rounded text-[10px] font-bold">Suppr</button></td></tr>`;
   });
+  const qtyEl=document.getElementById('stock-total-qty');
+  const valueEl=document.getElementById('stock-total-value');
+  if(qtyEl)qtyEl.textContent=new Intl.NumberFormat('fr-FR',{maximumFractionDigits:2}).format(totalQty);
+  if(valueEl)valueEl.textContent=formatAriary(totalValue);
   if(currentRole==='CASHIER')document.querySelectorAll('.admin-only').forEach(el=>el.classList.add('hidden'));
+  if(typeof lucide!=='undefined')lucide.createIcons();
 }
 function toggleSelectAllStock(master){document.querySelectorAll('.stock-checkbox').forEach(cb=>cb.checked=master.checked);}
 
@@ -2122,6 +2166,12 @@ function renderAdminDashboard(){
     document.getElementById('admin-kpi-orders').textContent = totalOrders;
 
     document.getElementById('admin-kpi-products').textContent = products.length;
+    const totalStockQty=products.reduce((sum,p)=>sum+safeNum(p.stock),0);
+    const totalStockValue=products.reduce((sum,p)=>sum+(safeNum(p.stock)*safeNum(p.price)),0);
+    const stockQtyEl=document.getElementById('admin-kpi-stock-qty');
+    const stockValueEl=document.getElementById('admin-kpi-stock-value');
+    if(stockQtyEl)stockQtyEl.textContent=new Intl.NumberFormat('fr-FR',{maximumFractionDigits:2}).format(totalStockQty);
+    if(stockValueEl)stockValueEl.textContent=formatAriary(totalStockValue);
 
     const lowStockCount = products.filter(p => p.stock <= p.alert).length;
     document.getElementById('admin-kpi-alerts').textContent = lowStockCount;
@@ -2620,61 +2670,51 @@ function importDatabaseBackup(event){
 }
 
 function requireAdminForDataClear(){if(currentRole!=='ADMIN'){alert('Accès refusé.');return false;}return true;}
-function verifySavedArray(key, expected){
-  try{return JSON.stringify(loadStorage(key,null))===JSON.stringify(expected);}catch(_){return false;}
-}
-function refreshAfterAdminClear(){
-  syncDataFromStorage();
-  renderStockTable();renderSalesTable();renderDailyReport();renderProfitsTables();renderDailyItemsTable();
-  updateDashboard();renderMovements();renderAudit();renderCashSession();renderAdminDashboard();
-  updateSyncUI('Données mises à jour.');
-  if(typeof lucide!=='undefined')lucide.createIcons();
-}
+function refreshAfterAdminClear(){syncDataFromStorage();renderStockTable();renderSalesTable();renderDailyReport();renderProfitsTables();renderDailyItemsTable();updateDashboard();renderMovements();renderAudit();renderCashSession();if(typeof lucide!=='undefined')lucide.createIcons();}
 function adminClearStockData(){
   if(!requireAdminForDataClear())return;
-  if(!confirm('Vider toute la Gestion Stock ? Les articles sont conservés et leurs quantités passent à 0.'))return;
+  if(!confirm('Vider toute la Gestion Stock ? Articles conservés, stock à 0.'))return;
   const count=products.length;
-  const nextProducts=products.map(p=>({...p,stock:0}));
-  if(!saveStorage('pos_products',nextProducts)||!verifySavedArray('pos_products',nextProducts)){alert('Échec : le stock n’a pas pu être enregistré.');return;}
-  products=nextProducts;
+  products=products.map(p=>({...p,stock:0}));
+  saveStorage('pos_products',products);
   addAudit('NETTOYAGE',`Stock vidé — ${count} article(s).`);
   refreshAfterAdminClear();
-  alert(`Stock vidé : ${count} article(s). Toutes les quantités affichent maintenant 0.`);
+  alert(`Stock vidé : ${count} article(s).`);
 }
 function adminClearSalesData(){
   if(!requireAdminForDataClear())return;
-  if(!confirm(`Supprimer les ${sales.length} transaction(s) du journal des ventes ?`))return;
+  if(!confirm(`Supprimer les ${sales.length} transaction(s) ?`))return;
   const count=sales.length;
-  const nextSales=[];
-  if(!saveStorage('pos_sales',nextSales)||!verifySavedArray('pos_sales',nextSales)){alert('Échec : les ventes n’ont pas pu être supprimées.');return;}
-  sales=nextSales;
-  addAudit('NETTOYAGE',`Journal des ventes vidé — ${count} transaction(s).`);
+  sales=[];
+  saveStorage('pos_sales',sales);
+  addAudit('NETTOYAGE',`Journal vidé — ${count} transaction(s).`);
   refreshAfterAdminClear();
-  alert(`Ventes vidées : ${count} transaction(s).`);
+  alert(`Journal vidé : ${count}.`);
 }
 function adminClearMovementsData(){
   if(!requireAdminForDataClear())return;
-  if(!confirm(`Supprimer les ${stockMovements.length} mouvement(s) de stock ?`))return;
+  if(!confirm(`Supprimer les ${stockMovements.length} mouvement(s) ?`))return;
   const count=stockMovements.length;
-  const nextMovements=[];
-  if(!saveStorage('pos_stock_movements',nextMovements)||!verifySavedArray('pos_stock_movements',nextMovements)){alert('Échec : les mouvements n’ont pas pu être supprimés.');return;}
-  stockMovements=nextMovements;
-  addAudit('NETTOYAGE',`Mouvements de stock vidés — ${count}.`);
+  stockMovements=[];
+  saveStorage('pos_stock_movements',stockMovements);
+  addAudit('NETTOYAGE',`Mouvements vidés — ${count}.`);
   refreshAfterAdminClear();
   alert(`Mouvements vidés : ${count}.`);
 }
 function adminClearCommercialData(){
   if(!requireAdminForDataClear())return;
-  if(!confirm('ATTENTION : vider Stock (quantités à 0), Journal des ventes et Mouvements ?'))return;
-  if(!confirm('CONFIRMATION FINALE : cette opération est irréversible. Continuer ?'))return;
-  const nextProducts=products.map(p=>({...p,stock:0})),nextSales=[],nextMovements=[];
-  if(!saveStorage('pos_products',nextProducts)||!saveStorage('pos_sales',nextSales)||!saveStorage('pos_stock_movements',nextMovements)){alert('Échec de sauvegarde du nettoyage. Aucune confirmation ne sera affichée.');return;}
-  if(!verifySavedArray('pos_products',nextProducts)||!verifySavedArray('pos_sales',nextSales)||!verifySavedArray('pos_stock_movements',nextMovements)){alert('Vérification échouée : les données n’ont pas été correctement enregistrées.');return;}
+  if(!confirm('ATTENTION : vider Stock (quantités à 0), Journal et Mouvements ?'))return;
+  if(!confirm('CONFIRMATION FINALE : irréversible. Continuer ?'))return;
   const counts={products:products.length,sales:sales.length,movements:stockMovements.length};
-  products=nextProducts;sales=nextSales;stockMovements=nextMovements;
+  products=products.map(p=>({...p,stock:0}));
+  sales=[];
+  stockMovements=[];
+  saveStorage('pos_products',products);
+  saveStorage('pos_sales',sales);
+  saveStorage('pos_stock_movements',stockMovements);
   addAudit('NETTOYAGE',`Données commerciales vidées — stock: ${counts.products}, ventes: ${counts.sales}, mouvements: ${counts.movements}.`);
   refreshAfterAdminClear();
-  alert('Nettoyage terminé : stock à 0, ventes supprimées et mouvements supprimés.');
+  alert(`Nettoyage terminé.`);
 }
 function resetSystemData(){
   if(confirm("ATTENTION : effacer les données ExpressPOS actuelles ?")){
@@ -2682,19 +2722,6 @@ function resetSystemData(){
     location.reload();
   }
 }
-
-// Ergonomie Android : focus automatique de la recherche après retour sur le POS.
-document.addEventListener('visibilitychange',()=>{
-  if(!document.hidden && typeof currentTab!=='undefined' && currentTab==='pos'){
-    setTimeout(()=>{const el=document.getElementById('pos-search'); if(el) el.focus({preventScroll:true});},120);
-  }
-});
-// Empêche le double-tap accidentel sur les actions critiques.
-document.addEventListener('dblclick',e=>{
-  const b=e.target.closest('button');
-  if(b && b.type==='submit') return;
-  if(b){ e.preventDefault(); }
-},{passive:false});
 
 function updateOnlineStatus(){
   const dot=document.getElementById('pwa-dot');
@@ -2713,5 +2740,84 @@ function getAppDiagnostics(){
 
 window.ExpressPOS={version:APP_VERSION,diagnostics:getAppDiagnostics,backup:{now:autoBackupNow,restore:restoreFromAutoBackup,list:()=>{try{return JSON.parse(localStorage.getItem(AUTO_BACKUP_KEY)||'[]').map((s,i)=>({index:i,reason:s.reason,savedAt:s.savedAt,sizeKB:s.sizeKB}));}catch(_){return[];}},clear:clearAutoBackups}};
 </script>
+<!-- MODAL DE MODIFICATION DE PRODUIT -->
+<div id="product-edit-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border border-slate-100 transform transition-all">
+    
+    <!-- En-tête -->
+    <div class="bg-slate-800 text-white px-5 py-4 flex justify-between items-center">
+      <div class="flex items-center space-x-2">
+        <i data-lucide="edit-3" class="w-5 h-5 text-emerald-400"></i>
+        <h3 class="font-bold text-sm">Modifier l'article</h3>
+      </div>
+      <button onclick="closeEditModal()" class="text-slate-400 hover:text-white transition">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+    </div>
+
+    <!-- Formulaire -->
+    <form id="edit-product-form" onsubmit="saveProductChanges(event)" class="p-5 space-y-4 text-xs">
+      <!-- ID Masqué -->
+      <input type="hidden" id="edit-product-id">
+
+      <div class="grid grid-cols-2 gap-3">
+        <!-- SKU -->
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Code / SKU *</label>
+          <input type="text" id="edit-product-sku" required class="w-full border border-slate-300 rounded-lg px-3 py-2 font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none">
+        </div>
+        <!-- Catégorie -->
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Catégorie *</label>
+          <input type="text" id="edit-product-category" required class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+        </div>
+      </div>
+
+      <!-- Désignation / Nom -->
+      <div>
+        <label class="block font-semibold text-slate-700 mb-1">Désignation de l'article *</label>
+        <input type="text" id="edit-product-name" required class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+      </div>
+
+      <!-- Prix et Transport -->
+      <div class="grid grid-cols-3 gap-3">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Prix Achat HT</label>
+          <input type="number" step="any" id="edit-product-buyPriceHT" min="0" required class="w-full border border-slate-300 rounded-lg px-3 py-2 font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none">
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Transport TTC</label>
+          <input type="number" step="any" id="edit-product-transportTTC" min="0" required class="w-full border border-slate-300 rounded-lg px-3 py-2 font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none">
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Prix Vente TTC *</label>
+          <input type="number" step="any" id="edit-product-sellPriceTTC" min="0" required class="w-full border border-slate-300 rounded-lg px-3 py-2 font-mono focus:ring-2 focus:ring-blue-500 font-bold text-emerald-600 focus:outline-none">
+        </div>
+      </div>
+
+      <!-- Stock & Seuil d'alerte -->
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Quantité en Stock *</label>
+          <input type="number" id="edit-product-stock" min="0" required class="w-full border border-slate-300 rounded-lg px-3 py-2 font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none">
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Seuil d'Alerte *</label>
+          <input type="number" id="edit-product-alertThreshold" min="0" required class="w-full border border-slate-300 rounded-lg px-3 py-2 font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none">
+        </div>
+      </div>
+
+      <!-- Boutons d'action -->
+      <div class="flex justify-end space-x-2 pt-3 border-t border-slate-100">
+        <button type="button" onclick="closeEditModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition">
+          Annuler
+        </button>
+        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-sm transition">
+          Enregistrer
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
 </body>
 </html>
